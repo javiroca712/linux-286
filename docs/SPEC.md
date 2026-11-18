@@ -9,7 +9,7 @@
   * **Region B (Extended / XMS RAM):** `0x100000` – `0x15FFFF` (384 KB mapped above 1 MB via A20 gate; scales automatically up to `0xFFFFFF` / 16 MB if present).
 * **Core Peripherals:**
   * **Interrupt Controller:** Dual cascaded 8259A PICs (`0x20`/`0x21` Master, `0xA0`/`0xA1` Slave), remapped to vectors `0x20`–`0x2F` to avoid colliding with 80286 CPU exceptions (`0x00`–`0x1F`).
-  * **Timer:** 8253/8254 PIT (`0x40`–`0x43`) configured at **100 Hz** (`10 ms` tick quantum) on `IRQ 0` (`INT 0x20`).
+  * **Timer & Class-D PWM Audio:** 8253/8254 PIT (`0x40`–`0x43`) configured at **100 Hz** (`10 ms` tick quantum) on `IRQ 0` (`INT 0x20`) during normal operation, dynamically accelerating to **8,000 Hz / 11,025 Hz** with a Ring 0 Fast-ISR prescaler when streaming Class-D PWM digital audio through PIT Channel 2 (`0x42`) and the internal PC Speaker (`0x61`).
   * **Serial I/O:** 8250 / 16450 / 16550A UART (`COM1` at `0x3F8`, `IRQ 4`; `COM2` at `0x2F8`, `IRQ 3`).
   * **Keyboard & A20:** 8042 PS/2-AT Keyboard Controller (`0x60`, `0x64`, `IRQ 1`).
   * **Video:** CGA (`0xB8000`), EGA/VGA Text (`0xB8000`), and MDA/Hercules (`0xB0000`) mapped via dedicated GDT video selectors, supporting 4 virtual consoles (`Alt+F1`–`Alt+F4`) and `VT102` escape sequences.
@@ -128,7 +128,26 @@ To achieve native bus-speed graphics on an 8–12 MHz 80286 without per-pixel sy
 
 ---
 
-## 6. Agentic Development Guardrails
+## 6. PC Speaker & Class-D PWM Digital Audio Subsystem (`/dev/pcspkr` & `/dev/dsp`)
+
+Every IBM PC/AT and 80286 clone includes an internal PC Speaker driven by 8254 PIT Channel 2 (`0x42`) and gated by Port `0x61` (Bits 0–1). `linux-286` exposes two audio interfaces in `kernel/drivers/sound286.c`:
+
+### 6.1 Hardware Square-Wave & Chiptune Synth (`/dev/pcspkr`)
+* Programs PIT Channel 2 into **Mode 3 (Square Wave Generator)** (`0xB6`).
+* Supports `KIOCSOUND` and `PCSPKR_IOC_BEEP` (timed asynchronously by the 100 Hz kernel tick) at **0% CPU overhead**—ideal for system bells, 3-voice arpeggiated chiptune trackers, and classic PC speaker game sound effects.
+
+### 6.2 Class-D PWM Digital PCM Audio (`/dev/dsp`)
+To play 8-bit unsigned mono `.WAV` audio and digital game SFX (such as *DOOM*'s digital sound lumps) without a dedicated ISA sound card:
+1. **PIT Channel 2 as Duty-Cycle Modulator:** Configured in **Mode 0 (One-Shot Interrupt on Terminal Count)**, LSB-only (`0x90`). Writing a count $N$ to port `0x42` drives the speaker pin LOW for $N$ ticks of the $1.193182\text{ MHz}$ clock and HIGH for the remainder of the carrier period, using the physical speaker cone's mechanical inductance as a Class-D low-pass filter.
+2. **Two-Tier Ring 0 `IRQ 0` Fast-ISR (`~75 clock cycles`):**
+   * When `/dev/dsp` is actively streaming at **8,000 Hz** (PIT Ch0 divider `149`) or **11,025 Hz** (divider `108`), `INT 0x20` points to a tight Ring 0 assembly stub (`irq0_pwm_fast`).
+   * The stub pops the next 8-bit PCM sample from the 4 KB `dsp_ringbuf`, translates it to a pulse width (`1..148` at 8 kHz) in **5 clock cycles** using a 256-byte lookup table and the 80286 **`XLATB`** instruction, outputs it via `OUT 0x42, AL`, sends EOI (`OUT 0x20, AL`), and returns via `IRET` (**< 6% CPU load on a 12 MHz 286**).
+   * A prescaler counter chains into the full C preemptive scheduler once every 80 ticks (at 8 kHz) or 110 ticks (at 11.025 kHz), keeping the OS scheduler clock locked at **100 Hz**.
+   * When `dsp_ringbuf` drains, the driver automatically drops PIT Channel 0 back to 100 Hz (**0% idle overhead**).
+
+---
+
+## 7. Agentic Development Guardrails
 
 To prevent LLM 386+ instruction bleed and Real-Mode segment bugs:
 1. **Mandatory `CPU 286` Directive:** Every `.asm` file must begin with `CPU 286` and `BITS 16`.
