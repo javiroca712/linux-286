@@ -104,6 +104,12 @@ devfs_lookup:
     test ax, ax
     jz .is_tty4
 
+    mov si, [saved_devfs_name]
+    mov di, str_dev_tty5
+    call devfs_streq
+    test ax, ax
+    jz .is_tty5
+
     ; 5. Check "ram0"
     mov si, [saved_devfs_name]
     mov di, str_dev_ram0
@@ -124,6 +130,31 @@ devfs_lookup:
     call devfs_streq
     test ax, ax
     jz .is_fd0
+
+    ; 8. Check Phase 6 Devices: fb0, mouse, pcspkr, dsp
+    mov si, [saved_devfs_name]
+    mov di, str_dev_fb0
+    call devfs_streq
+    test ax, ax
+    jz .is_fb0
+
+    mov si, [saved_devfs_name]
+    mov di, str_dev_mouse
+    call devfs_streq
+    test ax, ax
+    jz .is_mouse
+
+    mov si, [saved_devfs_name]
+    mov di, str_dev_pcspkr
+    call devfs_streq
+    test ax, ax
+    jz .is_pcspkr
+
+    mov si, [saved_devfs_name]
+    mov di, str_dev_dsp
+    call devfs_streq
+    test ax, ax
+    jz .is_dsp
 
     ; Not found
     xor ax, ax
@@ -241,6 +272,76 @@ devfs_lookup:
     mov ax, 1
     jmp .lookup_done
 
+.is_tty5:
+    mov di, [saved_devfs_dest]
+    mov word [di + VINO_DEV], 0
+    mov word [di + VINO_INO], 115
+    mov word [di + VINO_MODE], (S_IFCHR | 0666q)
+    mov word [di + VINO_NLINK], 1
+    mov word [di + VINO_RDEV], DEV_TTY5 ; Major 4, Minor 5 (/dev/tty5)
+    mov word [di + VINO_SIZE_LO], 0
+    mov word [di + VINO_SIZE_HI], 0
+    mov word [di + VINO_COUNT], 1
+    mov word [di + VINO_FS_TYPE], FS_TYPE_DEVFS
+    mov ax, 1
+    jmp .lookup_done
+
+.is_fb0:
+    mov di, [saved_devfs_dest]
+    mov word [di + VINO_DEV], 0
+    mov word [di + VINO_INO], 120
+    mov word [di + VINO_MODE], (S_IFCHR | 0660q)
+    mov word [di + VINO_NLINK], 1
+    mov word [di + VINO_RDEV], DEV_FB0  ; Major 29, Minor 0 (/dev/fb0)
+    mov word [di + VINO_SIZE_LO], 0
+    mov word [di + VINO_SIZE_HI], 1     ; 64 KB VRAM aperture
+    mov word [di + VINO_COUNT], 1
+    mov word [di + VINO_FS_TYPE], FS_TYPE_DEVFS
+    mov ax, 1
+    jmp .lookup_done
+
+.is_mouse:
+    mov di, [saved_devfs_dest]
+    mov word [di + VINO_DEV], 0
+    mov word [di + VINO_INO], 121
+    mov word [di + VINO_MODE], (S_IFCHR | 0660q)
+    mov word [di + VINO_NLINK], 1
+    mov word [di + VINO_RDEV], DEV_MOUSE ; Major 10, Minor 1 (/dev/mouse)
+    mov word [di + VINO_SIZE_LO], 0
+    mov word [di + VINO_SIZE_HI], 0
+    mov word [di + VINO_COUNT], 1
+    mov word [di + VINO_FS_TYPE], FS_TYPE_DEVFS
+    mov ax, 1
+    jmp .lookup_done
+
+.is_pcspkr:
+    mov di, [saved_devfs_dest]
+    mov word [di + VINO_DEV], 0
+    mov word [di + VINO_INO], 122
+    mov word [di + VINO_MODE], (S_IFCHR | 0660q)
+    mov word [di + VINO_NLINK], 1
+    mov word [di + VINO_RDEV], DEV_PCSPKR ; Major 13, Minor 0 (/dev/pcspkr)
+    mov word [di + VINO_SIZE_LO], 0
+    mov word [di + VINO_SIZE_HI], 0
+    mov word [di + VINO_COUNT], 1
+    mov word [di + VINO_FS_TYPE], FS_TYPE_DEVFS
+    mov ax, 1
+    jmp .lookup_done
+
+.is_dsp:
+    mov di, [saved_devfs_dest]
+    mov word [di + VINO_DEV], 0
+    mov word [di + VINO_INO], 123
+    mov word [di + VINO_MODE], (S_IFCHR | 0660q)
+    mov word [di + VINO_NLINK], 1
+    mov word [di + VINO_RDEV], DEV_DSP ; Major 14, Minor 3 (/dev/dsp)
+    mov word [di + VINO_SIZE_LO], 0
+    mov word [di + VINO_SIZE_HI], 0
+    mov word [di + VINO_COUNT], 1
+    mov word [di + VINO_FS_TYPE], FS_TYPE_DEVFS
+    mov ax, 1
+    jmp .lookup_done
+
 .is_ram0:
     mov di, [saved_devfs_dest]
     mov word [di + VINO_DEV], 0
@@ -324,15 +425,31 @@ devfs_read:
     cmp ax, 0x0501
     je .read_active_tty
 
-    ; Check /dev/tty1..4 (0x0401..0x0404)
+    ; Check /dev/mouse (0x0A01)
+    cmp ax, DEV_MOUSE
+    je .read_mouse
+
+    ; Check /dev/fb0 (0x1D00)
+    cmp ax, DEV_FB0
+    je .read_fb0
+
+    ; Check /dev/tty1..5 (0x0401..0x0405)
     cmp ax, 0x0401
     jb .read_other
-    cmp ax, 0x0404
+    cmp ax, 0x0405
     ja .read_other
 
     mov bx, ax
-    sub bx, 0x0400                      ; BX = 1..4
+    sub bx, 0x0400                      ; BX = 1..5
     call tty_read
+    jmp .dev_read_exit
+
+.read_mouse:
+    call mouse_read
+    jmp .dev_read_exit
+
+.read_fb0:
+    call fb286_read
     jmp .dev_read_exit
 
 .read_ttys0:
@@ -414,15 +531,29 @@ devfs_write:
     cmp ax, 0x0501
     je .write_active_tty
 
-    ; /dev/tty1..4 (0x0401..0x0404)
+    cmp ax, DEV_FB0
+    je .write_fb0
+
+    cmp ax, DEV_DSP
+    je .write_dsp
+
+    ; /dev/tty1..5 (0x0401..0x0405)
     cmp ax, 0x0401
     jb .discard
-    cmp ax, 0x0404
+    cmp ax, 0x0405
     ja .discard
 
     mov bx, ax
-    sub bx, 0x0400                      ; BX = 1..4
+    sub bx, 0x0400                      ; BX = 1..5
     call tty_write
+    jmp .dev_write_exit
+
+.write_fb0:
+    call fb286_write
+    jmp .dev_write_exit
+
+.write_dsp:
+    call dsp_write
     jmp .dev_write_exit
 
 .discard:
@@ -503,6 +634,11 @@ str_dev_tty1:       db "tty1", 0
 str_dev_tty2:       db "tty2", 0
 str_dev_tty3:       db "tty3", 0
 str_dev_tty4:       db "tty4", 0
+str_dev_tty5:       db "tty5", 0
+str_dev_fb0:        db "fb0", 0
+str_dev_mouse:      db "mouse", 0
+str_dev_pcspkr:     db "pcspkr", 0
+str_dev_dsp:        db "dsp", 0
 str_dev_ram0:       db "ram0", 0
 str_dev_hda:        db "hda", 0
 str_dev_fd0:        db "fd0", 0

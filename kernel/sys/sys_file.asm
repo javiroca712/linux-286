@@ -699,6 +699,17 @@ sys_ioctl:
     jne .ioctl_notty
 
     mov ax, [di + VINO_RDEV]
+
+    ; Check Phase 6 Devices:
+    cmp ax, DEV_FB0
+    je .ioctl_is_fb0
+
+    cmp ax, DEV_PCSPKR
+    je .ioctl_is_pcspkr
+
+    cmp ax, DEV_DSP
+    je .ioctl_is_dsp
+
     ; Identify TTY:
     cmp ax, 0x0440                      ; /dev/ttyS0 -> TTY 0
     je .ioctl_is_ttys0
@@ -706,13 +717,31 @@ sys_ioctl:
     je .ioctl_is_active_vc
     cmp ax, 0x0401
     jb .ioctl_notty
-    cmp ax, 0x0404
+    cmp ax, 0x0405                      ; /dev/tty1..5
     ja .ioctl_notty
 
-    ; /dev/tty1..4 -> TTY 1..4
+    ; /dev/tty1..5 -> TTY 1..5
     sub ax, 0x0400
     mov bx, ax
     jmp .do_ioctl_call
+
+.ioctl_is_fb0:
+    mov cx, [bp + 2]                    ; CX = cmd
+    mov dx, [bp + 4]                    ; DX = arg_ptr
+    call fb286_ioctl
+    jmp .ioctl_exit
+
+.ioctl_is_pcspkr:
+    mov cx, [bp + 2]                    ; CX = cmd
+    mov dx, [bp + 4]                    ; DX = arg_ptr
+    call pcspkr_ioctl
+    jmp .ioctl_exit
+
+.ioctl_is_dsp:
+    mov cx, [bp + 2]                    ; CX = cmd
+    mov dx, [bp + 4]                    ; DX = arg_ptr
+    call dsp_ioctl
+    jmp .ioctl_exit
 
 .ioctl_is_ttys0:
     xor bx, bx
@@ -850,19 +879,31 @@ sys_select:
 .check_dev_read_sel:
     cmp word [di + VINO_FS_TYPE], FS_TYPE_DEVFS
     jne .read_always_ready
-    ; Devfs: check if TTY
+    ; Devfs: check if mouse
     mov ax, [di + VINO_RDEV]
+    cmp ax, DEV_MOUSE
+    je .dev_is_mouse
+    ; Devfs: check if TTY
     cmp ax, 0x0440
     je .dev_is_ttys0
     cmp ax, 0x0501
     je .dev_is_act_vc
     cmp ax, 0x0401
     jb .read_always_ready
-    cmp ax, 0x0404
+    cmp ax, 0x0405
     ja .read_always_ready
     sub ax, 0x0400
     mov bx, ax
     jmp .do_tty_sel_check
+
+.dev_is_mouse:
+    call mouse_select_check
+    test ax, ax
+    jz .check_sel_write_fd
+    mov ax, [sel_cur_bit]
+    or [sel_out_read], ax
+    inc word [sel_ready_cnt]
+    jmp .check_sel_write_fd
 
 .dev_is_ttys0:
     xor bx, bx

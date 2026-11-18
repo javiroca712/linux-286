@@ -128,7 +128,10 @@ SYS_IOCTL       equ 54
 SYS_DUP2        equ 63
 SYS_GETPPID     equ 64
 SYS_SELECT      equ 82
-MAX_SYSCALLS    equ 84
+SYS_SHMGET286   equ 85
+SYS_SHMAT286    equ 86
+SYS_SHMDT286    equ 87
+MAX_SYSCALLS    equ 88
 
 ; POSIX Standard Signals
 SIGHUP          equ 1
@@ -362,10 +365,105 @@ PIPE_STRUCT_IN_USE  equ 522 ; dw
 PIPE_STRUCT_SIZE    equ 524
 
 ; TTY & Console Constants
-MAX_TTYS        equ 5   ; 0=ttyS0, 1=tty1, 2=tty2, 3=tty3, 4=tty4
+MAX_TTYS        equ 6   ; 0=ttyS0, 1=tty1, 2=tty2, 3=tty3, 4=tty4, 5=tty5
 TTY_BUF_SIZE    equ 256
-NR_CONSOLES     equ 4   ; 4 Virtual Consoles (tty1..4)
+NR_CONSOLES     equ 5   ; 5 Virtual Consoles (tty1..5, tty5 = graphical console)
 VC_BUF_SIZE     equ 4000 ; 80 * 25 * 2 bytes
+
+; Additional Device Numbers
+DEV_FB0         equ 0x1D00  ; Major 29, Minor 0 (/dev/fb0)
+DEV_MOUSE       equ 0x0A01  ; Major 10, Minor 1 (/dev/mouse)
+DEV_PCSPKR      equ 0x0D00  ; Major 13, Minor 0 (/dev/pcspkr)
+DEV_DSP         equ 0x0E03  ; Major 14, Minor 3 (/dev/dsp)
+DEV_TTY5        equ 0x0405  ; Major 4, Minor 5 (/dev/tty5)
+
+; ============================================================================
+; Phase 6: Framebuffer, Shared Memory, Mouse & Audio Definitions
+; ============================================================================
+
+; Framebuffer Video Modes
+FB_MODE_TEXT_80x25      equ 0x0003
+FB_MODE_MDA_80x25       equ 0x0007
+FB_MODE_CGA_640x200x2   equ 0x0006
+FB_MODE_HERC_720x348x2  equ 0x0008
+FB_MODE_EGA_640x350x16  equ 0x0010
+FB_MODE_VGA_640x480x16  equ 0x0012
+FB_MODE_VGA_320x200x256 equ 0x0013
+
+; Framebuffer ioctl Commands
+FBIOGET_INFO            equ 0x4601
+FBIOSET_MODE            equ 0x4602
+FBIOMAP_LDT             equ 0x4603
+FBIOSET_IOPL3           equ 0x4604
+FBIOSET_PALETTE         equ 0x4605
+
+; struct fb286_info Offsets (18 bytes)
+FBINFO_MODE             equ 0   ; dw
+FBINFO_WIDTH            equ 2   ; dw
+FBINFO_HEIGHT           equ 4   ; dw
+FBINFO_BPP              equ 6   ; db
+FBINFO_PLANES           equ 7   ; db
+FBINFO_STRIDE           equ 8   ; dw
+FBINFO_PHYS_BASE_LO     equ 10  ; dw
+FBINFO_PHYS_BASE_HI     equ 12  ; dw
+FBINFO_APERTURE_SIZE    equ 14  ; dw
+FBINFO_LDT_SELECTOR     equ 16  ; dw
+FBINFO_SIZE             equ 18
+
+; Shared Memory IPC Constants & Offsets
+MAX_SHM_SEGS            equ 8
+IPC_PRIVATE             equ 0
+
+SHMREQ_KEY              equ 0   ; dw
+SHMREQ_SIZE             equ 2   ; dw
+SHMREQ_FLAGS            equ 4   ; dw
+SHMREQ_OUT_SHMID        equ 6   ; dw
+SHMREQ_OUT_SELECTOR     equ 8   ; dw
+SHMREQ_SIZE_BYTES       equ 10
+
+; Mouse Buttons & struct mouse286_event Offsets
+MOUSE_BTN_LEFT          equ 0x01
+MOUSE_BTN_RIGHT         equ 0x02
+MOUSE_BTN_MIDDLE        equ 0x04
+
+MEV_DX                  equ 0   ; db (signed)
+MEV_DY                  equ 1   ; db (signed)
+MEV_BUTTONS             equ 2   ; db
+MEV_RESERVED            equ 3   ; db
+MEV_SIZE                equ 4
+
+; Sound Hardware Ports & PIT Command Bytes
+PIT_CH0_PORT            equ 0x40
+PIT_CH2_PORT            equ 0x42
+PIT_CMD_PORT            equ 0x43
+PCSPKR_CTRL_PORT        equ 0x61
+LPT1_DATA_PORT          equ 0x378
+PIT_CH2_MODE3_SQUARE    equ 0xB6
+PIT_CH2_MODE0_PWM       equ 0x90
+
+; /dev/pcspkr ioctls
+KIOCSOUND               equ 0x4B2F
+PCSPKR_IOC_TONE_HZ      equ 0x5001
+PCSPKR_IOC_BEEP         equ 0x5002
+
+; struct pcspkr_note Offsets
+NOTE_FREQ_HZ            equ 0   ; dw
+NOTE_DURATION_MS        equ 2   ; dw
+NOTE_SIZE               equ 4
+
+; /dev/dsp ioctls & Constants
+SNDCTL_DSP_RESET        equ 0x5300
+SNDCTL_DSP_SYNC         equ 0x5301
+SNDCTL_DSP_SPEED        equ 0x5302
+SNDCTL_DSP_GETBLKSIZE   equ 0x5304
+SNDCTL_DSP_SETBACKEND   equ 0x5310
+
+DSP_RATE_8000_HZ        equ 8000
+DSP_RATE_11025_HZ       equ 11025
+DSP_BACKEND_PCSPKR_PWM  equ 0x00
+DSP_BACKEND_COVOX_LPT1  equ 0x01
+DSP_RINGBUF_SIZE        equ 2048
+
 
 
 

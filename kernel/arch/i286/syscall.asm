@@ -316,3 +316,7 @@ sys_call_table:
     times 17 dw sys_nosys               ; 65..81
     dw sys_select                       ; 82: sys_select
     dw sys_nosys                        ; 83: reserved
+    dw sys_nosys                        ; 84: reserved
+    dw sys_shmget286                    ; 85: sys_shmget286
+    dw sys_shmat286                     ; 86: sys_shmat286
+    dw sys_shmdt286                     ; 87: sys_shmdt286

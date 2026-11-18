@@ -144,6 +144,8 @@ keyboard_process_scancode:
     je .hotkey_f3
     cmp al, 0x3E                        ; F4 -> Switch to tty4 (VC 3)
     je .hotkey_f4
+    cmp al, 0x3F                        ; F5 -> Switch to tty5 (VC 4, GUI)
+    je .hotkey_f5
 
 .check_regular_key:
     ; 7. Translate make code to ASCII
@@ -216,6 +218,11 @@ keyboard_process_scancode:
 
 .hotkey_f4:
     mov al, 3
+    call vt102_switch_console
+    jmp .proc_done
+
+.hotkey_f5:
+    mov al, 4
     call vt102_switch_console
     jmp .proc_done
 

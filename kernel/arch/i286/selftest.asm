@@ -217,6 +217,12 @@ run_verification_gate:
     cmp al, 1
     jne .ldt_fail
 
+    ; Clean up Task 1 Entry 4 descriptor so it is available for subsequent tests
+    mov al, 1
+    mov ah, 4
+    call ldt_get_entry_ptr
+    mov byte [di + 5], 0
+
     ; Switch back to Task 0
     xor al, al
     call ldt_switch_task
@@ -339,6 +345,12 @@ run_verification_gate:
     cmp word [vm_cow_faults_handled], 1
     jb .cow_verify_fail
 
+    ; Clean up Task 1 Entry 4 descriptor so it is available for subsequent tests
+    mov al, 1
+    mov ah, 4
+    call ldt_get_entry_ptr
+    mov byte [di + 5], 0
+
     ; Switch back to Task 0
     xor al, al
     call ldt_switch_task
@@ -400,6 +412,12 @@ run_verification_gate:
     cmp word [vm_np_faults_handled], 1
     jb .np_verify_fail
 
+    ; Clean up Task 1 Entry 4 descriptor so it is available for subsequent tests
+    mov al, 1
+    mov ah, 4
+    call ldt_get_entry_ptr
+    mov byte [di + 5], 0
+
     ; Switch back to Task 0
     xor al, al
     call ldt_switch_task
@@ -452,6 +470,12 @@ run_verification_gate:
     mov di, task_ldts + 64 + 16 ; Task 1, Entry 2
     cmp word [di + 0], 0xFF00 - STACK_GROWTH_STEP_BYTES
     jne .ss_fail
+
+    ; Clean up Task 1 Entry 4 descriptor so it is available for subsequent tests
+    mov al, 1
+    mov ah, 4
+    call ldt_get_entry_ptr
+    mov byte [di + 5], 0
 
     ; Switch back to Task 0
     xor al, al

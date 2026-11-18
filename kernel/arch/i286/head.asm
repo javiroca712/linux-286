@@ -107,12 +107,12 @@ gdtr_runtime_base_high:
 
 str_banner1:    db 13, 10
                 db "========================================================", 13, 10
-                db " Lin286 Kernel v0.5.0-phase5 (Intel 80286 Protected Mode)", 13, 10
+                db " Lin286 Kernel v0.6.0-phase6 (Intel 80286 Protected Mode)", 13, 10
                 db "========================================================", 13, 10, 0
 str_banner2:    db "[PM286] LMSW PE=1 active. Ring 0 execution established.", 13, 10
                 db "[PM286] CS=0x0008 (Base=0x001000) DS=SS=0x0010 (Base=0x019000)", 13, 10, 0
-str_vga_banner: db "Lin286 Kernel v0.5.0-phase5 (Intel 80286 Protected Mode, 1MB RAM)", 13, 10, 0
-str_ready:      db "[READY] Lin286 Phase 5 kernel initialized. Halting at idle.", 13, 10, 0
+str_vga_banner: db "Lin286 Kernel v0.6.0-phase6 (Intel 80286 Protected Mode, 1MB RAM)", 13, 10, 0
+str_ready:      db "[READY] Lin286 Phase 6 kernel initialized. Halting at idle.", 13, 10, 0
 
 section .bss
 bss_start:
@@ -200,11 +200,24 @@ _start:
     call keyboard_init
     call pipe_init
 
-    ; 13. Execute Verification Gate Self-Tests (Phases 1, 2, 3, 4, and 5)
+    ; 13. Initialize Phase 6 Subsystems:
+    ; - Native Protected-Mode Framebuffer (/dev/fb0, 0x0A0000 VRAM)
+    ; - Zero-Copy LDT Shared Memory (shmget286/shmat286)
+    ; - RS-232 Serial Mouse Driver (/dev/mouse)
+    ; - PC Speaker (/dev/pcspkr) & Class-D PWM Audio (/dev/dsp)
+    ; - Nano-X Display Server Core on tty5 (Alt+F5)
+    call fb286_init
+    call shm_init
+    call mouse_init
+    call sound286_init
+    call nanox_init
+
+    ; 14. Execute Verification Gate Self-Tests (Phases 1, 2, 3, 4, 5, and 6)
     call run_verification_gate
     call run_phase3_verification_gate
     call run_phase4_verification_gate
     call run_phase5_verification_gate
+    call run_phase6_verification_gate
 
     ; Enable maskable interrupts for 100 Hz scheduler tick
     sti
@@ -253,6 +266,12 @@ _start:
 %include "kernel/arch/i286/selftest_phase3.asm"
 %include "kernel/arch/i286/selftest_phase4.asm"
 %include "kernel/arch/i286/selftest_phase5.asm"
+%include "kernel/drivers/fb286.asm"
+%include "kernel/mm/shm286.asm"
+%include "kernel/drivers/mouse.asm"
+%include "kernel/drivers/sound286.asm"
+%include "kernel/fs/nanox.asm"
+%include "kernel/arch/i286/selftest_phase6.asm"
 
 ; ----------------------------------------------------------------------------
 ; Section Boundary Anchors
@@ -266,5 +285,5 @@ align 16
 data_end:
 
 section .bss
-align 16
+alignb 16
 bss_end:

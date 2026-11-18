@@ -27,6 +27,13 @@ section .text
 ldt_init:
     pusha
 
+    ; Zero out all task LDT descriptors in memory (MAX_TASKS * 8 * 8 = 512 bytes)
+    mov di, task_ldts
+    mov cx, (MAX_TASKS * 8 * 8) / 2
+    xor ax, ax
+    cld
+    rep stosw
+
     ; Kernel data base is physical 0x019000
     ; For each task pid (0 .. MAX_TASKS - 1):
     ; Compute physical address: 0x019000 + task_ldts + (pid * 64)

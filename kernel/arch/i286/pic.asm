@@ -88,7 +88,20 @@ pit_init:
 ; IRQ 0 Timer Interrupt Handler (Vector 0x20)
 irq0_timer_handler:
     push ax
+    push ds
 
+    mov ax, GDT_KDATA_SEL
+    mov ds, ax
+
+    ; 1. If Class-D PWM Audio is streaming, process fast sample tick
+    cmp byte [dsp_active], 0
+    jz .normal_tick
+
+    call dsp_irq0_sample_tick
+    test ax, ax
+    jnz .fast_done                      ; Fast EOI handled -> return immediately!
+
+.normal_tick:
     ; Increment 32-bit tick counter (jiffies)
     inc word [jiffies]
     jnz .no_carry
@@ -99,11 +112,15 @@ irq0_timer_handler:
     mov al, 0x20
     out PIC1_CMD, al
 
-    pop ax
+    ; Hook for PC Speaker timed beep
+    call pcspkr_tick
 
     ; Call scheduler timer tick hook
     call sched_tick
 
+.fast_done:
+    pop ds
+    pop ax
     iret
 
 section .data

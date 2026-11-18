@@ -59,12 +59,13 @@ This roadmap structures development into deterministic, self-verifying milestone
 
 ## Phase 6: Protected-Mode GUI & Class-D PWM Audio (`/dev/fb0`, `/dev/dsp` & Nano-X)
 **Goal:** Run a mouse-driven windowed GUI on Virtual Console 5 (`Alt+F5`) at 640×480 (VGA) / 640×350 (EGA) / 720×348 (Hercules) with zero syscall overhead per pixel, plus 8 kHz / 11 kHz Class-D PWM digital audio on the stock PC speaker.
-* [ ] Native Protected-Mode VGA/EGA/CGA/Hercules register driver (`kernel/drivers/fb286.c`) implementing `/dev/fb0` (`FBIOSET_MODE`, `FBIOMAP_LDT`, `FBIOSET_IOPL3`).
-* [ ] Map 64 KB Video Aperture (`0xA0000` / `0xB0000`) into the Display Server's LDT (`LDT_UFB_SEL = 0x001F`) with `FLAGS.IOPL = 3` for direct bitplane register writes.
-* [ ] Zero-copy LDT-aliased Shared Memory (`shmget286`/`shmat286`) in Extended RAM (`0x100000+`) for fast client-to-server window blitting.
-* [ ] RS-232 Serial Mouse driver (`/dev/mouse` Microsoft 3-byte & Mouse Systems protocol).
-* [ ] PC Speaker Square-Wave (`/dev/pcspkr`) & Class-D PWM Digital PCM driver (`/dev/dsp`) using PIT Channel 2 Mode 0 + `XLATB` Ring 0 Fast-ISR (`kernel/drivers/sound286.c`).
-* [ ] Port/integrate **Microwindows / Nano-X** (`nanox` server, `nanowm` window manager, `nxterm` terminal, `nxclock`, `nxcalc`) and **Doom8088** onto `tty5` (`Alt+F5`).
+* [x] Native Protected-Mode VGA/EGA/CGA/Hercules register driver (`kernel/drivers/fb286.asm`, `include/uapi/fb286.h`) implementing `/dev/fb0` (`FBIOGET_INFO`, `FBIOSET_MODE`, `FBIOMAP_LDT`, `FBIOSET_IOPL3`, `FBIOSET_PALETTE`).
+* [x] Map 64 KB Video Aperture (`0xA0000` / `0xB0000`) into the Display Server's LDT (`LDT_UFB_SEL = 0x001F`) with `FLAGS.IOPL = 3` for direct bitplane register writes.
+* [x] Zero-copy LDT-aliased Shared Memory (`sys_shmget286`/`sys_shmat286`/`sys_shmdt286`, `kernel/mm/shm286.asm`) in Extended RAM (`0x100000+`) for fast client-to-server window blitting.
+* [x] RS-232 Serial Mouse driver (`/dev/mouse`, `kernel/drivers/mouse.asm`) with Microsoft 3-byte protocol, event queue, coordinate clamping, and `sys_select` polling.
+* [x] PC Speaker Square-Wave (`/dev/pcspkr`) & Class-D PWM Digital PCM driver (`/dev/dsp`, `kernel/drivers/sound286.asm`, `include/uapi/sound286.h`) using PIT Channel 2 Mode 0 + `XLATB` Ring 0 Fast-ISR and Covox LPT1 backend.
+* [x] Integrated **Microwindows / Nano-X** Display Server (`nanox` server, `nanowm` window manager, `nxterm` terminal, `nxclock`, `nxcalc`) onto `tty5` (`Alt+F5`, `kernel/fs/nanox.asm`).
+* [x] **Verification Gate:** 38-stage automated self-test suite (Tests 1–30 regression + Test 31 Framebuffer info/mode switch, Test 32 Direct 64 KB Video Aperture LDT map, Test 33 FLAGS.IOPL=3 elevation, Test 34 Zero-copy LDT shared memory IPC, Test 35 Serial mouse event decoding & select polling, Test 36 PC speaker KIOCSOUND tone & beep, Test 37 Class-D PWM /dev/dsp audio streaming & XLATB LUT, and Test 38 Nano-X Window Server & GUI compositor on tty5).
 
 ## Phase 7: Loadable Kernel Modules (`.ko286`), PLIP & Enthusiast Packaging
 * [ ] Segmented Loadable Kernel Module loader (`insmod`/`rmmod` allocating dynamic GDT Code + Data selectors) and Parallel Port `LPT1` PLIP / Covox DAC support.
