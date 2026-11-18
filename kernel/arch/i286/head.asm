@@ -227,6 +227,9 @@ _start:
     mov si, str_ready
     call console_puts
 
+    ; Launch Nano-X GUI Desktop on tty5 (Alt+F5)
+    call nanox_start_gui
+
 .idle_loop:
     hlt
     jmp .idle_loop

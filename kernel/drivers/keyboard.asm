@@ -202,28 +202,35 @@ keyboard_process_scancode:
     jmp .proc_done
 
 .hotkey_f1:
+    mov ax, FB_MODE_TEXT_80x25
+    call fb286_set_mode
     mov al, 0
     call vt102_switch_console
     jmp .proc_done
 
 .hotkey_f2:
+    mov ax, FB_MODE_TEXT_80x25
+    call fb286_set_mode
     mov al, 1
     call vt102_switch_console
     jmp .proc_done
 
 .hotkey_f3:
+    mov ax, FB_MODE_TEXT_80x25
+    call fb286_set_mode
     mov al, 2
     call vt102_switch_console
     jmp .proc_done
 
 .hotkey_f4:
+    mov ax, FB_MODE_TEXT_80x25
+    call fb286_set_mode
     mov al, 3
     call vt102_switch_console
     jmp .proc_done
 
 .hotkey_f5:
-    mov al, 4
-    call vt102_switch_console
+    call nanox_start_gui
     jmp .proc_done
 
 .shift_make:
