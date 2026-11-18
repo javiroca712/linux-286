@@ -26,7 +26,9 @@ Historically, open-source Unix/Linux projects either stayed in **8086 Real Mode*
 * **Zero-Overhead Protected-Mode GUI (`Nano-X` & `Doom8088` on `/dev/fb0`):**
   Supports a mouse-driven windowed GUI at `640×480` (VGA), `640×350` (EGA), or `720×348` (Hercules) on `Alt+F5` (plus `320×200×256` Mode 13h) by mapping the 64 KB video aperture (`0xA0000`/`0xB0000`) directly into the display server's LDT (`0x001F`), granting selective `FLAGS.IOPL = 3` for native bitplane register access, and aliasing Extended RAM segments across LDTs for zero-copy shared window buffers.
 * **Class-D PWM Digital Audio on Stock PC Speaker (`/dev/dsp` & `/dev/pcspkr`):**
-  Streams 8 kHz / 11.025 kHz 8-bit digital PCM audio (`.WAV` files and digital game SFX) through the standard motherboard PC Speaker using 8254 PIT Channel 2 Mode 0 duty-cycle modulation and a 75-cycle `XLATB` Ring 0 Fast-ISR (<6% CPU overhead on a 12 MHz 286).
+  Streams 8 kHz / 11.025 kHz 8-bit digital PCM audio (`.WAV` files and digital game SFX) through the standard motherboard PC Speaker using 8254 PIT Channel 2 Mode 0 duty-cycle modulation and a 75-cycle `XLATB` Ring 0 Fast-ISR (<6% CPU overhead on a 12 MHz 286), with optional Covox 8-bit DAC output on `LPT1`.
+* **Segmented Loadable Kernel Modules (`.ko286`) & AT Peripherals:**
+  Preserves precious RAM on 1 MB machines by loading optional drivers (`ne2k`, `fat16`, `plip`, `mouse`, `sound286`) into dynamic GDT segments via `insmod`/`rmmod`, alongside native MC146818 CMOS RTC/RAM autodetect, 80287 lazy FPU switching (`INT 7 #NM`), and an in-kernel serial/VGA debugger (`kdb286`).
 * **Retro-Hardware Interoperability:**
   Supports **Minix v1/v2** root filesystems alongside **FAT12/FAT16** for seamless file exchange with MS-DOS / FreeDOS on CompactFlash cards, XT-IDE adapters, and 1.44 MB / 1.2 MB floppies.
 
@@ -36,18 +38,21 @@ Historically, open-source Unix/Linux projects either stayed in **8086 Real Mode*
 
 ```text
 linux-286/
+├── AGENTS.md           # Automatic 80286 Protected Mode guardrails for AI coding agents
+├── .agents/skills/     # Workspace skills for deterministic WSL/Docker builds & headless tests
 ├── boot/               # Stage 1 (MBR/Floppy) & Stage 2 (A20, GDT, 286 PM switch)
 ├── kernel/             # Ring 0 monolithic kernel
-│   ├── arch/i286/      # GDT, LDT, IDT, TSS, #NP/#GP/#SS fault handlers, INT 0x80
+│   ├── arch/i286/      # GDT, LDT, IDT, TSS, #NP/#GP/#SS/#NM handlers, kdb286, INT 0x80
 │   ├── mm/             # 24-bit segment allocator, CoW fork, LDT shm, Clock-LRU swapper
-│   ├── proc/           # Preemptive scheduler, fork, execve (a.out), waitpid, signals
+│   ├── proc/           # Preemptive scheduler, fork, execve (a.out), .ko286 LKM loader
 │   ├── fs/             # VFS, buffer cache, Minix v1/v2, FAT12/16, /dev, /proc
-│   └── drivers/        # PIC, PIT, UART, PIO IDE/XT-IDE, FDC, VT102, /dev/fb0, /dev/mouse
+│   └── drivers/        # PIC, PIT, CMOS RTC, UART, IDE, FDC, VT102, /dev/fb0, /dev/dsp, PLIP
 ├── include/            # Kernel and POSIX/UAPI headers
 │   ├── arch/i286.h     # 80286 hardware descriptor, selector & IOPL definitions
 │   └── uapi/
 │       ├── fb286.h     # Protected-Mode framebuffer, LDT shared memory & mouse UAPI
-│       └── sound286.h  # PC Speaker square-wave (/dev/pcspkr) & Class-D PWM (/dev/dsp) UAPI
+│       ├── sound286.h  # PC Speaker square-wave (/dev/pcspkr) & Class-D PWM (/dev/dsp) UAPI
+│       └── sys286.h    # Loadable modules (.ko286), CMOS RTC, 80287 FPU & LPT1 PLIP/Covox
 ├── libc/               # Minimal POSIX.1-1988 C library & syscall stubs
 ├── user/               # Init, shell, Nano-X GUI integration & 286 diagnostic tools
 ├── tools/              # Build scripts & agentic verification guardrails

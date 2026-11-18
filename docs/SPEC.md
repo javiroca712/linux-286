@@ -147,7 +147,26 @@ To play 8-bit unsigned mono `.WAV` audio and digital game SFX (such as *DOOM*'s 
 
 ---
 
-## 7. Agentic Development Guardrails
+## 7. High-Leverage Hardware & Kernel Extensions (`include/uapi/sys286.h`)
+
+To maximize available RAM on 1 MB systems and take full advantage of standard IBM PC/AT motherboard peripherals:
+
+1. **Segmented Loadable Kernel Modules (`.ko286` — `insmod` / `rmmod`):**
+   * Optional drivers (`ne2k`, `fat16`, `plip`, `mouse`, `sound286`) can be compiled as relocatable `.ko286` modules rather than bloating the static Ring 0 kernel image.
+   * On `insmod`, the kernel allocates a compact physical segment pair for the module's code and data, inserts two Ring 0 descriptors into the GDT, resolves kernel symbol imports, and invokes `mod_init()`. On `rmmod`, `mod_exit()` runs and the physical segments are returned to the 860 KB pool.
+2. **PC/AT MC146818 CMOS Real-Time Clock & Hardware Autodetect (`0x70`/`0x71`):**
+   * Directly reads CMOS registers `0x15`–`0x18` in Protected Mode to verify Base RAM (640 KB) and Extended RAM (384 KB+) without BIOS calls, inspects `0x10` for 1.2 MB / 1.44 MB floppy geometry, and reads BCD date/time registers (`0x00`–`0x09`) to seed the POSIX wall-clock epoch at boot.
+3. **Intel 80287 Lazy FPU Context Switching & Emulation (`INT 7 #NM`):**
+   * Uses `MSW.TS` (Task Switched) so integer context switches cost zero FPU overhead. When a task executes an `ESC` (`0xD8`–`0xDF`) instruction, `INT 7 (#NM)` fires and lazily saves/restores the 94-byte `struct fpu287_state` (`CLTS`, `FSAVE`, `FRSTOR`), or dispatches to software FPU emulation when `MSW.EM = 1`.
+4. **Parallel Port (`LPT1` at `0x378`) PLIP Networking & Covox 8-Bit DAC:**
+   * **PLIP:** High-speed (~50 KB/s) 4-bit nibble networking over a standard LapLink parallel cable.
+   * **Covox Speech Thing:** Selectable via `ioctl(fd, SNDCTL_DSP_SETBACKEND, DSP_BACKEND_COVOX_LPT1)` so the `IRQ 0` Fast-ISR outputs 8-bit PCM samples directly to `0x378`.
+5. **Built-In Ring 0 Kernel Debugger (`kdb286`):**
+   * Invoked automatically on kernel panic or via `Ctrl+Alt+SysRq` / serial break on `COM1`. Supports inspecting GDT/LDT descriptors (`ldt <pid>`), dumping 24-bit physical addresses (`x`), listing tasks (`ps`), and stack backtraces (`bt`).
+
+---
+
+## 8. Agentic Development Guardrails (`AGENTS.md` & `.agents/skills/`)
 
 To prevent LLM 386+ instruction bleed and Real-Mode segment bugs:
 1. **Mandatory `CPU 286` Directive:** Every `.asm` file must begin with `CPU 286` and `BITS 16`.

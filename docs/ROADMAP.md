@@ -6,21 +6,21 @@ This roadmap structures development into deterministic, self-verifying milestone
 
 ## Phase 0: Toolchain, Static Gatekeeper & Emulator Harness
 **Goal:** Establish a sub-second build-and-verify loop that rejects non-80286 instructions at build time and captures serial telemetry at runtime.
-* [x] Repository structure, `SPEC.md`, and `check_286_opcodes.py` gatekeeper.
-* [ ] Build system (`Makefile` / PowerShell / Docker wrapper) targeting `NASM` (`CPU 286`) and `ia16-elf-gcc` / `OpenWatcom`.
+* [x] Repository structure, `SPEC.md`, `AGENTS.md`, `.agents/skills/build-test-286`, and `check_286_opcodes.py` gatekeeper.
+* [ ] Build system (`Makefile` / PowerShell / WSL wrapper) targeting `NASM` (`CPU 286`) and `ia16-elf-gcc` / `OpenWatcom`.
 * [ ] Headless emulator runner (`Bochs` CPU-level 2 / `QEMU` / `86Box`) streaming `COM1` (`0x3F8`) to stdout with automated timeout and exit-code assertions.
 
-## Phase 1: Bootloader, A20 & 80286 Protected Mode Switch
-**Goal:** Boot from floppy/MBR, enable A20, initialize GDT/IDT, enter 16-bit Protected Mode via `LMSW`, and print diagnostic output over `COM1` and VGA.
+## Phase 1: Bootloader, A20, CMOS Autodetect & 80286 Protected Mode Switch
+**Goal:** Boot from floppy/MBR, enable A20, initialize GDT/IDT, enter 16-bit Protected Mode via `LMSW`, read CMOS RAM/RTC, and print diagnostic output over `COM1` and VGA.
 * [ ] Stage 1 (`boot/bootsect.asm`): Load Stage 2 + Kernel image from disk.
 * [ ] Stage 2 (`boot/setup.asm`):
   * Detect conventional and extended (`INT 15h AH=88h`) memory size.
   * Enable A20 gate (8042 keyboard controller + Fast A20 fallback).
   * Load temporary GDT & IDT and execute `LMSW` (`PE=1`) + far jump `jmp 0x0008:pm_entry`.
 * [ ] Ring 0 Early Kernel (`kernel/arch/i286/`):
-  * Initialize 8250 UART (`COM1`) and dual-display text console (`0xB8000` / `0xB0000`).
+  * Initialize 8250 UART (`COM1`), dual-display text console (`0xB8000` / `0xB0000`), and MC146818 CMOS RTC/RAM autodetect (`0x70`/`0x71`).
   * Remap 8259A PIC (`0x20`–`0x2F`) and start 8253 PIT at 100 Hz.
-  * Install CPU exception handlers (`INT 0`–`INT 13`: `#UD`, `#DF`, `#TS`, `#NP`, `#SS`, `#GP`) with detailed register & descriptor dumps.
+  * Install CPU exception handlers (`INT 0`–`INT 13`: `#UD`, `#NM` 80287 lazy FPU, `#DF`, `#TS`, `#NP`, `#SS`, `#GP`) and interactive `kdb286` serial/console crash monitor.
 * **Verification Gate:** Trigger deliberate `#GP` and `#NP` faults in Ring 0/Ring 3 and verify structured crash dumps over `COM1`.
 
 ## Phase 2: 24-Bit Segment Memory Manager & Virtual Memory Core
@@ -61,7 +61,8 @@ This roadmap structures development into deterministic, self-verifying milestone
 * [ ] PC Speaker Square-Wave (`/dev/pcspkr`) & Class-D PWM Digital PCM driver (`/dev/dsp`) using PIT Channel 2 Mode 0 + `XLATB` Ring 0 Fast-ISR (`kernel/drivers/sound286.c`).
 * [ ] Port/integrate **Microwindows / Nano-X** (`nanox` server, `nanowm` window manager, `nxterm` terminal, `nxclock`, `nxcalc`) and **Doom8088** onto `tty5` (`Alt+F5`).
 
-## Phase 7: Enthusiast Polish & Release Packaging
+## Phase 7: Loadable Kernel Modules (`.ko286`), PLIP & Enthusiast Packaging
+* [ ] Segmented Loadable Kernel Module loader (`insmod`/`rmmod` allocating dynamic GDT Code + Data selectors) and Parallel Port `LPT1` PLIP / Covox DAC support.
 * [ ] Single-floppy (1.44 MB / 1.2 MB) and CF/IDE hard disk image builder.
 * [ ] 86Box hardware validation profile (IBM 5170 AT, 12 MHz 286, 1 MB RAM, ISA IDE/VGA + Serial Mouse).
 * [ ] Self-hosting on-target assembler/compiler package.
