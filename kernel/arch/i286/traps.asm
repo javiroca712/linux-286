@@ -112,6 +112,11 @@ idt_init:
     mov ax, irq0_timer_handler
     call set_gate_entry
 
+    ; Install IRQ 1 (Keyboard) at vector 0x21
+    mov di, idt_table + (0x21 * 8)
+    mov ax, irq1_keyboard_handler
+    call set_gate_entry
+
     ; Install INT 0x80 System Call Trap Gate (DPL=3)
     mov di, idt_table + (0x80 * 8)
     mov ax, syscall_entry

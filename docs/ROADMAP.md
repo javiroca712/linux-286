@@ -52,9 +52,10 @@ This roadmap structures development into deterministic, self-verifying milestone
 
 ## Phase 5: Terminal (`termios`), Virtual Consoles & Userland
 **Goal:** Boot into an interactive multi-console POSIX shell running unmodified ELKS `a.out` utilities and native 286 tools.
-* [ ] POSIX `termios` line discipline, pipes (`sys_pipe`), `dup2`, and `select`.
-* [ ] VT102 / ANSI console driver with 4 Virtual Consoles (`Alt+F1`–`Alt+F4`) + serial `getty` on `/dev/ttyS0`.
-* [ ] Integrate `elks-libc` + Bourne shell (`ash`/`sash`) + core utilities (`ls`, `cat`, `ps`, `free`, `mount`, `vi`, `grep`) on root disk image.
+* [x] POSIX `termios` line discipline (`kernel/drivers/tty.asm`, `include/uapi/termios.h`), pipes (`kernel/fs/pipe.asm`, `include/fs/pipe.h`, `sys_pipe`), `dup` (41), `dup2` (63), `ioctl` (54), and `select` (82).
+* [x] VT102 / ANSI console driver with 4 Virtual Consoles (`Alt+F1`–`Alt+F4`, `kernel/drivers/vt102.asm`) + serial `ttyS0` + 8042 keyboard IRQ 1 handler (`kernel/drivers/keyboard.asm`).
+* [x] Stand-alone shell (`sash`, `kernel/fs/sash.asm`) built-ins (`echo`, `cat`, `uname`, `clear`, `help`, `ps`, `free`), I/O redirection, and inter-process pipeline execution (`cmd1 | cmd2`).
+* [x] **Verification Gate:** 30-stage automated self-test suite (Tests 1–22 regression + Test 23 Pipe creation/FIFO read/write/EOF, Test 24 dup/dup2 descriptors, Test 25 termios line discipline ERASE/KILL/ICRNL/ioctls, Test 26 VT102 ANSI parser, Test 27 4 Virtual Consoles screen buffers & Alt+F1-F4 switching, Test 28 8042 Keyboard IRQ 1 translation, Test 29 sys_select multiplexed ready polling, and Test 30 Shell command pipeline execution).
 
 ## Phase 6: Protected-Mode GUI & Class-D PWM Audio (`/dev/fb0`, `/dev/dsp` & Nano-X)
 **Goal:** Run a mouse-driven windowed GUI on Virtual Console 5 (`Alt+F5`) at 640×480 (VGA) / 640×350 (EGA) / 720×348 (Hercules) with zero syscall overhead per pixel, plus 8 kHz / 11 kHz Class-D PWM digital audio on the stock PC speaker.

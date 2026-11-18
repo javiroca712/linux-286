@@ -303,7 +303,16 @@ sys_call_table:
     dw sys_fstat                        ; 28: sys_fstat
     times 8 dw sys_nosys                ; 29..36
     dw sys_kill                         ; 37: sys_kill
-    times 10 dw sys_nosys               ; 38..47
+    times 3 dw sys_nosys                ; 38..40
+    dw sys_dup                          ; 41: sys_dup
+    dw sys_pipe                         ; 42: sys_pipe
+    times 5 dw sys_nosys                ; 43..47
     dw sys_signal                       ; 48: sys_signal
-    times 15 dw sys_nosys               ; 49..63
+    times 5 dw sys_nosys                ; 49..53
+    dw sys_ioctl                        ; 54: sys_ioctl
+    times 8 dw sys_nosys                ; 55..62
+    dw sys_dup2                         ; 63: sys_dup2
     dw sys_getppid                      ; 64: sys_getppid
+    times 17 dw sys_nosys               ; 65..81
+    dw sys_select                       ; 82: sys_select
+    dw sys_nosys                        ; 83: reserved

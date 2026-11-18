@@ -41,7 +41,7 @@ run_phase3_verification_gate:
     jne .t8_failed
 
     ; 8b. Test invalid syscall number -> -38 (-ENOSYS)
-    mov ax, 63                          ; Unimplemented
+    mov ax, 70                          ; Unimplemented (sys_nosys)
     int 0x80
     cmp ax, -38
     jne .t8_failed

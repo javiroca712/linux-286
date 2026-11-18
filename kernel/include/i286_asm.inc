@@ -115,11 +115,20 @@ SYS_CLOSE       equ 6
 SYS_WAITPID     equ 7
 SYS_EXECVE      equ 11
 SYS_BRK         equ 17
+SYS_STAT        equ 18
+SYS_LSEEK       equ 19
 SYS_GETPID      equ 20
+SYS_MOUNT       equ 21
+SYS_FSTAT       equ 28
 SYS_KILL        equ 37
+SYS_DUP         equ 41
+SYS_PIPE        equ 42
 SYS_SIGNAL      equ 48
+SYS_IOCTL       equ 54
+SYS_DUP2        equ 63
 SYS_GETPPID     equ 64
-MAX_SYSCALLS    equ 65
+SYS_SELECT      equ 82
+MAX_SYSCALLS    equ 84
 
 ; POSIX Standard Signals
 SIGHUP          equ 1
@@ -185,8 +194,10 @@ EISDIR          equ 21
 EINVAL          equ 22
 ENFILE          equ 23
 EMFILE          equ 24
+ENOTTY          equ 25
 ENOSPC          equ 28
 ESPIPE          equ 29
+EPIPE           equ 32
 
 ; Additional Phase 4 Syscalls
 SYS_MOUNT       equ 21
@@ -249,6 +260,7 @@ S_IFREG         equ 0x8000
 S_IFDIR         equ 0x4000
 S_IFCHR         equ 0x2000
 S_IFBLK         equ 0x6000
+S_IFIFO         equ 0x1000
 
 O_RDONLY        equ 0
 O_WRONLY        equ 1
@@ -266,6 +278,7 @@ FS_TYPE_MINIX   equ 1
 FS_TYPE_FAT     equ 2
 FS_TYPE_DEVFS   equ 3
 FS_TYPE_PROCFS  equ 4
+FS_TYPE_PIPE    equ 5
 
 ; VFS Limits
 MAX_OPEN_FILES_PER_TASK equ 8
@@ -303,5 +316,56 @@ VFIL_SIZE       equ 12
 MINIX_MAGIC_V1_14 equ 0x137F
 MINIX_MAGIC_V1_30 equ 0x138F
 MINIX_DIR_ENT_SIZE equ 16
+
+; ============================================================================
+; Phase 5: Terminal (termios), Virtual Consoles & Pipes Definitions
+; ============================================================================
+
+; POSIX termios Flags
+TERMIOS_ICRNL   equ 0x0100  ; Map CR to NL on input
+TERMIOS_ONLCR   equ 0x0004  ; Map NL to CR-NL on output
+TERMIOS_ISIG    equ 0x0001  ; Enable signals (^C -> SIGINT, ^\ -> SIGQUIT)
+TERMIOS_ICANON  equ 0x0002  ; Canonical mode (line editing)
+TERMIOS_ECHO    equ 0x0008  ; Echo input characters
+TERMIOS_ECHOE   equ 0x0010  ; Visual backspace
+TERMIOS_ECHOK   equ 0x0020  ; Echo newline after kill
+
+; termios struct offsets (26 bytes)
+TERMIOS_IFLAG   equ 0   ; dw
+TERMIOS_OFLAG   equ 2   ; dw
+TERMIOS_CFLAG   equ 4   ; dw
+TERMIOS_LFLAG   equ 6   ; dw
+TERMIOS_LINE    equ 8   ; db
+TERMIOS_CC      equ 9   ; 16 bytes (c_cc[0..15])
+TERMIOS_SIZE    equ 26
+
+; termios ioctl commands
+TCGETS          equ 0x5401
+TCSETS          equ 0x5402
+TCSETSW         equ 0x5403
+TCSETSF         equ 0x5404
+TIOCGWINSZ      equ 0x5413
+TIOCSWINSZ      equ 0x5414
+
+; Pipe Constants
+PIPE_BUF_SIZE   equ 512
+MAX_PIPES       equ 4
+
+; struct pipe offsets
+PIPE_STRUCT_BUF     equ 0   ; 512 bytes
+PIPE_STRUCT_HEAD    equ 512 ; dw
+PIPE_STRUCT_TAIL    equ 514 ; dw
+PIPE_STRUCT_COUNT   equ 516 ; dw
+PIPE_STRUCT_READERS equ 518 ; dw
+PIPE_STRUCT_WRITERS equ 520 ; dw
+PIPE_STRUCT_IN_USE  equ 522 ; dw
+PIPE_STRUCT_SIZE    equ 524
+
+; TTY & Console Constants
+MAX_TTYS        equ 5   ; 0=ttyS0, 1=tty1, 2=tty2, 3=tty3, 4=tty4
+TTY_BUF_SIZE    equ 256
+NR_CONSOLES     equ 4   ; 4 Virtual Consoles (tty1..4)
+VC_BUF_SIZE     equ 4000 ; 80 * 25 * 2 bytes
+
 
 

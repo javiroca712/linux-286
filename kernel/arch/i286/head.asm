@@ -107,12 +107,12 @@ gdtr_runtime_base_high:
 
 str_banner1:    db 13, 10
                 db "========================================================", 13, 10
-                db " Lin286 Kernel v0.4.0-phase4 (Intel 80286 Protected Mode)", 13, 10
+                db " Lin286 Kernel v0.5.0-phase5 (Intel 80286 Protected Mode)", 13, 10
                 db "========================================================", 13, 10, 0
 str_banner2:    db "[PM286] LMSW PE=1 active. Ring 0 execution established.", 13, 10
                 db "[PM286] CS=0x0008 (Base=0x001000) DS=SS=0x0010 (Base=0x019000)", 13, 10, 0
-str_vga_banner: db "Lin286 Kernel v0.4.0-phase4 (Intel 80286 Protected Mode, 1MB RAM)", 13, 10, 0
-str_ready:      db "[READY] Lin286 Phase 4 kernel initialized. Halting at idle.", 13, 10, 0
+str_vga_banner: db "Lin286 Kernel v0.5.0-phase5 (Intel 80286 Protected Mode, 1MB RAM)", 13, 10, 0
+str_ready:      db "[READY] Lin286 Phase 5 kernel initialized. Halting at idle.", 13, 10, 0
 
 section .bss
 bss_start:
@@ -190,10 +190,21 @@ _start:
     ; - Rootfs (Minix v1 on /), DOS (/dos), /dev, /proc
     call vfs_init
 
-    ; 12. Execute Verification Gate Self-Tests (Phases 1, 2, 3, and 4)
+    ; 12. Initialize Phase 5 Subsystems:
+    ; - VT102 / ANSI Terminal Parser & 4 Virtual Consoles (tty1..4)
+    ; - POSIX termios Line Discipline (5 terminals: ttyS0, tty1..4)
+    ; - 8042 Keyboard Driver (IRQ 1 vector 0x21)
+    ; - Circular FIFO Pipe Subsystem
+    call vt102_init
+    call tty_init
+    call keyboard_init
+    call pipe_init
+
+    ; 13. Execute Verification Gate Self-Tests (Phases 1, 2, 3, 4, and 5)
     call run_verification_gate
     call run_phase3_verification_gate
     call run_phase4_verification_gate
+    call run_phase5_verification_gate
 
     ; Enable maskable interrupts for 100 Hz scheduler tick
     sti
@@ -233,9 +244,15 @@ _start:
 %include "kernel/fs/procfs.asm"
 %include "kernel/fs/vfs.asm"
 %include "kernel/sys/sys_file.asm"
+%include "kernel/drivers/vt102.asm"
+%include "kernel/drivers/tty.asm"
+%include "kernel/drivers/keyboard.asm"
+%include "kernel/fs/pipe.asm"
+%include "kernel/fs/sash.asm"
 %include "kernel/arch/i286/selftest.asm"
 %include "kernel/arch/i286/selftest_phase3.asm"
 %include "kernel/arch/i286/selftest_phase4.asm"
+%include "kernel/arch/i286/selftest_phase5.asm"
 
 ; ----------------------------------------------------------------------------
 ; Section Boundary Anchors

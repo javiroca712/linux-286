@@ -73,6 +73,37 @@ devfs_lookup:
     test ax, ax
     jz .is_tty
 
+    mov si, [saved_devfs_name]
+    mov di, str_dev_console
+    call devfs_streq
+    test ax, ax
+    jz .is_tty
+
+    ; Check "tty1".."tty4"
+    mov si, [saved_devfs_name]
+    mov di, str_dev_tty1
+    call devfs_streq
+    test ax, ax
+    jz .is_tty1
+
+    mov si, [saved_devfs_name]
+    mov di, str_dev_tty2
+    call devfs_streq
+    test ax, ax
+    jz .is_tty2
+
+    mov si, [saved_devfs_name]
+    mov di, str_dev_tty3
+    call devfs_streq
+    test ax, ax
+    jz .is_tty3
+
+    mov si, [saved_devfs_name]
+    mov di, str_dev_tty4
+    call devfs_streq
+    test ax, ax
+    jz .is_tty4
+
     ; 5. Check "ram0"
     mov si, [saved_devfs_name]
     mov di, str_dev_ram0
@@ -147,6 +178,62 @@ devfs_lookup:
     mov word [di + VINO_MODE], (S_IFCHR | 0666q)
     mov word [di + VINO_NLINK], 1
     mov word [di + VINO_RDEV], 0x0501   ; Major 5, Minor 1 (/dev/console)
+    mov word [di + VINO_SIZE_LO], 0
+    mov word [di + VINO_SIZE_HI], 0
+    mov word [di + VINO_COUNT], 1
+    mov word [di + VINO_FS_TYPE], FS_TYPE_DEVFS
+    mov ax, 1
+    jmp .lookup_done
+
+.is_tty1:
+    mov di, [saved_devfs_dest]
+    mov word [di + VINO_DEV], 0
+    mov word [di + VINO_INO], 111
+    mov word [di + VINO_MODE], (S_IFCHR | 0666q)
+    mov word [di + VINO_NLINK], 1
+    mov word [di + VINO_RDEV], 0x0401   ; Major 4, Minor 1 (/dev/tty1)
+    mov word [di + VINO_SIZE_LO], 0
+    mov word [di + VINO_SIZE_HI], 0
+    mov word [di + VINO_COUNT], 1
+    mov word [di + VINO_FS_TYPE], FS_TYPE_DEVFS
+    mov ax, 1
+    jmp .lookup_done
+
+.is_tty2:
+    mov di, [saved_devfs_dest]
+    mov word [di + VINO_DEV], 0
+    mov word [di + VINO_INO], 112
+    mov word [di + VINO_MODE], (S_IFCHR | 0666q)
+    mov word [di + VINO_NLINK], 1
+    mov word [di + VINO_RDEV], 0x0402   ; Major 4, Minor 2 (/dev/tty2)
+    mov word [di + VINO_SIZE_LO], 0
+    mov word [di + VINO_SIZE_HI], 0
+    mov word [di + VINO_COUNT], 1
+    mov word [di + VINO_FS_TYPE], FS_TYPE_DEVFS
+    mov ax, 1
+    jmp .lookup_done
+
+.is_tty3:
+    mov di, [saved_devfs_dest]
+    mov word [di + VINO_DEV], 0
+    mov word [di + VINO_INO], 113
+    mov word [di + VINO_MODE], (S_IFCHR | 0666q)
+    mov word [di + VINO_NLINK], 1
+    mov word [di + VINO_RDEV], 0x0403   ; Major 4, Minor 3 (/dev/tty3)
+    mov word [di + VINO_SIZE_LO], 0
+    mov word [di + VINO_SIZE_HI], 0
+    mov word [di + VINO_COUNT], 1
+    mov word [di + VINO_FS_TYPE], FS_TYPE_DEVFS
+    mov ax, 1
+    jmp .lookup_done
+
+.is_tty4:
+    mov di, [saved_devfs_dest]
+    mov word [di + VINO_DEV], 0
+    mov word [di + VINO_INO], 114
+    mov word [di + VINO_MODE], (S_IFCHR | 0666q)
+    mov word [di + VINO_NLINK], 1
+    mov word [di + VINO_RDEV], 0x0404   ; Major 4, Minor 4 (/dev/tty4)
     mov word [di + VINO_SIZE_LO], 0
     mov word [di + VINO_SIZE_HI], 0
     mov word [di + VINO_COUNT], 1
@@ -229,7 +316,38 @@ devfs_read:
     cmp ax, 0x0105
     je .read_zero
 
-    ; For other devices (tty, ttyS0): return 0
+    ; Check /dev/ttyS0 (0x0440): TTY 0
+    cmp ax, 0x0440
+    je .read_ttys0
+
+    ; Check /dev/tty or /dev/console (0x0501)
+    cmp ax, 0x0501
+    je .read_active_tty
+
+    ; Check /dev/tty1..4 (0x0401..0x0404)
+    cmp ax, 0x0401
+    jb .read_other
+    cmp ax, 0x0404
+    ja .read_other
+
+    mov bx, ax
+    sub bx, 0x0400                      ; BX = 1..4
+    call tty_read
+    jmp .dev_read_exit
+
+.read_ttys0:
+    xor bx, bx                          ; BX = 0 (ttyS0)
+    call tty_read
+    jmp .dev_read_exit
+
+.read_active_tty:
+    mov bl, [active_console]
+    inc bl                              ; TTY 1..4
+    xor bh, bh
+    call tty_read
+    jmp .dev_read_exit
+
+.read_other:
     xor ax, ax
     jmp .dev_read_exit
 
@@ -288,35 +406,49 @@ devfs_write:
     cmp ax, 0x0105
     je .discard
 
-    ; /dev/ttyS0 (0x0440): Output to UART
+    ; /dev/ttyS0 (0x0440): Output to TTY 0
     cmp ax, 0x0440
-    je .write_uart
+    je .write_ttys0
 
-    ; /dev/console or /dev/tty (0x0501): Output to UART and Console
+    ; /dev/console or /dev/tty (0x0501): Output to active console and mirror to UART
     cmp ax, 0x0501
-    je .write_console
+    je .write_active_tty
+
+    ; /dev/tty1..4 (0x0401..0x0404)
+    cmp ax, 0x0401
+    jb .discard
+    cmp ax, 0x0404
+    ja .discard
+
+    mov bx, ax
+    sub bx, 0x0400                      ; BX = 1..4
+    call tty_write
+    jmp .dev_write_exit
 
 .discard:
     mov ax, cx                          ; Successfully accepted all bytes
     jmp .dev_write_exit
 
-.write_uart:
-    mov bx, cx
+.write_ttys0:
+    xor bx, bx                          ; TTY 0
+    call tty_write
+    jmp .dev_write_exit
+
+.write_active_tty:
+    ; Mirror to UART for test and serial log capture
+    push cx
+    push si
 .uart_loop:
     lodsb
     call uart_putc
     loop .uart_loop
-    mov ax, bx
-    jmp .dev_write_exit
+    pop si
+    pop cx
 
-.write_console:
-    mov bx, cx
-.con_loop:
-    lodsb
-    call uart_putc
-    call console_putc
-    loop .con_loop
-    mov ax, bx
+    mov bl, [active_console]
+    inc bl                              ; TTY 1..4
+    xor bh, bh
+    call tty_write
     jmp .dev_write_exit
 
 .write_zero:
@@ -366,6 +498,11 @@ str_dev_null:       db "null", 0
 str_dev_zero:       db "zero", 0
 str_dev_ttyS0:      db "ttyS0", 0
 str_dev_tty:        db "tty", 0
+str_dev_console:    db "console", 0
+str_dev_tty1:       db "tty1", 0
+str_dev_tty2:       db "tty2", 0
+str_dev_tty3:       db "tty3", 0
+str_dev_tty4:       db "tty4", 0
 str_dev_ram0:       db "ram0", 0
 str_dev_hda:        db "hda", 0
 str_dev_fd0:        db "fd0", 0

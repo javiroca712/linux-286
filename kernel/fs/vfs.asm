@@ -19,6 +19,8 @@ global vfs_lseek
 global vfs_fstat
 global vfs_stat
 global vfs_clone_task_fds
+global vfs_alloc_inode_slot
+global vfs_alloc_file_slot
 global vfs_inode_table
 global vfs_file_table
 global task_filp_table
@@ -348,6 +350,21 @@ vfs_close:
     jz .close_ok
     dec word [di + VINO_COUNT]
 
+    ; Check if inode is a pipe
+    cmp word [di + VINO_FS_TYPE], FS_TYPE_PIPE
+    jne .close_ok
+    push bx
+    mov ax, [bx + VFIL_MODE]
+    mov bx, [di + VINO_RDEV]
+    cmp ax, O_WRONLY
+    je .close_pipe_w
+    call pipe_close_reader
+    jmp .pipe_closed
+.close_pipe_w:
+    call pipe_close_writer
+.pipe_closed:
+    pop bx
+
 .close_ok:
     xor ax, ax
     jmp .close_exit
@@ -402,6 +419,16 @@ vfs_read:
 
     mov ax, [di + VINO_FS_TYPE]
 
+    ; 0. Pipe Read
+    cmp ax, FS_TYPE_PIPE
+    jne .check_dev_read
+    mov bx, [di + VINO_RDEV]
+    mov si, [saved_read_dest_buf]
+    mov cx, [saved_read_req_cnt]
+    call pipe_read
+    jmp .read_ret
+
+.check_dev_read:
     ; 1. DevFS Read
     cmp ax, FS_TYPE_DEVFS
     jne .check_proc_read
@@ -508,6 +535,16 @@ vfs_write:
 
     mov ax, [di + VINO_FS_TYPE]
 
+    ; 0. Pipe Write
+    cmp ax, FS_TYPE_PIPE
+    jne .check_dev_write
+    mov bx, [di + VINO_RDEV]
+    mov si, [saved_write_src_buf]
+    mov cx, [saved_write_req_cnt]
+    call pipe_write
+    jmp .write_ret
+
+.check_dev_write:
     ; 1. DevFS Write
     cmp ax, FS_TYPE_DEVFS
     jne .check_minix_write
