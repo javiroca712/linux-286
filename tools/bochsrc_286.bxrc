@@ -9,7 +9,10 @@ vgaromimage: file=/usr/share/seabios/vgabios.bin
 floppya: 1_44="build/floppy.img", status=inserted
 boot: floppy
 speaker: enabled=0
-display_library: rfb, options="nodisplay"
+sound: driver=dummy
+sb16: enabled=0
+es1370: enabled=0
+display_library: rfb, options="timeout=1"
 com1: enabled=1, mode=file, dev="build/serial.log"
 log: build/bochs.log
 panic: action=fatal

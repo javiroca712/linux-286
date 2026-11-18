@@ -91,3 +91,80 @@ PIC2_CMD        equ 0xA0
 PIC2_DATA       equ 0xA1
 PIT_CH0         equ 0x40
 PIT_MODE        equ 0x43
+
+; ============================================================================
+; Phase 3: Multitasking, Tasks, Scheduler & Syscalls Definitions
+; ============================================================================
+
+TASK_KSTACK_SIZE equ 512
+
+; Task Execution States
+TASK_UNUSED     equ 0
+TASK_RUNNING    equ 1
+TASK_READY      equ 2
+TASK_BLOCKED    equ 3
+TASK_ZOMBIE     equ 4
+
+; Syscall Numbers
+SYS_EXIT        equ 1
+SYS_FORK        equ 2
+SYS_READ        equ 3
+SYS_WRITE       equ 4
+SYS_OPEN        equ 5
+SYS_CLOSE       equ 6
+SYS_WAITPID     equ 7
+SYS_EXECVE      equ 11
+SYS_BRK         equ 17
+SYS_GETPID      equ 20
+SYS_KILL        equ 37
+SYS_SIGNAL      equ 48
+SYS_GETPPID     equ 64
+MAX_SYSCALLS    equ 65
+
+; POSIX Standard Signals
+SIGHUP          equ 1
+SIGINT          equ 2
+SIGQUIT         equ 3
+SIGILL          equ 4
+SIGTRAP         equ 5
+SIGABRT         equ 6
+SIGBUS          equ 7
+SIGFPE          equ 8
+SIGKILL         equ 9
+SIGUSR1         equ 10
+SIGSEGV         equ 11
+SIGUSR2         equ 12
+SIGPIPE         equ 13
+SIGALRM         equ 14
+SIGTERM         equ 15
+
+SIG_DFL         equ 0
+SIG_IGN         equ 1
+
+WNOHANG         equ 1
+
+; MINIX / ELKS Split-I&D a.out header
+A_MAGIC         equ 0x0301
+A_FLAG_SPLIT_ID equ 0x20
+
+; struct task_struct Offsets (Total size: 64 bytes = 1 << 6)
+TS_PID          equ 0   ; dw
+TS_STATE        equ 2   ; db
+TS_PPID         equ 3   ; db
+TS_PRIORITY     equ 4   ; db
+TS_TICKS_LEFT   equ 5   ; db
+TS_KSP          equ 6   ; dw
+TS_KSS          equ 8   ; dw
+TS_LDT_SEL      equ 10  ; dw
+TS_EXIT_CODE    equ 12  ; dw
+TS_WAIT_PID     equ 14  ; dw
+TS_SIG_PENDING  equ 16  ; dw
+TS_SIG_BLOCKED  equ 18  ; dw
+TS_BRK_LIMIT    equ 20  ; dw
+TS_TEXT_BLK     equ 22  ; dw
+TS_DATA_BLK     equ 24  ; dw
+TS_RESERVED     equ 26  ; dw
+TS_SIG_HANDLERS equ 28  ; 16 dw = 32 bytes (offsets 28..59)
+TS_PADDING      equ 60  ; 4 bytes padding
+TASK_STRUCT_SIZE equ 64
+

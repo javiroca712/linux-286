@@ -36,9 +36,10 @@ This roadmap structures development into deterministic, self-verifying milestone
 
 ## Phase 3: Multitasking, Process Lifecycle & `INT 0x80` Syscalls
 **Goal:** Preemptive multitasking of Ring 3 processes with ELKS-compatible `a.out` binary loading.
-* [ ] Task table (`struct task`), kernel stack context switch, and 100 Hz preemptive round-robin scheduler (`LLDT` + `TSS.ss0/sp0` update).
-* [ ] `INT 0x80` Ring 3 trap gate and syscall dispatcher.
-* [ ] `sys_fork()` (with CoW LDT cloning), `sys_execve()` (16-bit Split-I&D `a.out` loader), `sys_exit()`, `sys_waitpid()`, `sys_brk()`, and POSIX signal delivery (`sigaction`, `kill`).
+* [x] Task table (`struct task`), kernel stack context switch, and 100 Hz preemptive round-robin scheduler (`LLDT` + `TSS.ss0/sp0` update).
+* [x] `INT 0x80` Ring 3 trap gate and syscall dispatcher.
+* [x] `sys_fork()` (with CoW LDT cloning), `sys_execve()` (16-bit Split-I&D `a.out` loader), `sys_exit()`, `sys_waitpid()`, `sys_brk()`, and POSIX signal delivery (`sigaction`, `kill`).
+* [x] **Verification Gate:** 14-stage automated self-test suite (Task table initialization, Ring 3 user entry & INT 0x80 syscalls, dynamic heap expansion via sys_brk, sys_fork with CoW LDT, sys_execve 16-bit a.out loader, 100 Hz PIT preemptive round-robin scheduling, POSIX signal queueing & delivery, and child exit/reap lifecycle).
 
 ## Phase 4: Block Drivers, VFS & Filesystems
 **Goal:** Persistent storage on IDE/CF and Floppy with Minix rootfs and DOS FAT12/16 interoperability.

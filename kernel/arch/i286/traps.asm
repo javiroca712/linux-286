@@ -112,6 +112,11 @@ idt_init:
     mov ax, irq0_timer_handler
     call set_gate_entry
 
+    ; Install INT 0x80 System Call Trap Gate (DPL=3)
+    mov di, idt_table + (0x80 * 8)
+    mov ax, syscall_entry
+    call set_gate_entry_dpl3
+
     ; Calculate physical 24-bit address of idt_table:
     ; Base = 0x019000 + idt_table offset within Kernel Data segment
     mov ax, idt_table
@@ -138,6 +143,16 @@ set_gate_entry:
     mov word [es:di + 2], GDT_KCODE_SEL ; Target Code Segment Selector
     mov byte [es:di + 4], 0         ; Word count = 0
     mov byte [es:di + 5], 0x86      ; Access: Present(1), DPL=00, 286 Interrupt Gate
+    mov word [es:di + 6], 0x0000    ; Reserved
+    ret
+
+; Helper to write an 80286 Trap Gate Descriptor with DPL=3 at ES:DI
+; AX = Handler Offset within CS (GDT_KCODE_SEL = 0x0008)
+set_gate_entry_dpl3:
+    mov [es:di + 0], ax             ; Offset 15..0
+    mov word [es:di + 2], GDT_KCODE_SEL ; Target Code Segment Selector
+    mov byte [es:di + 4], 0         ; Word count = 0
+    mov byte [es:di + 5], 0xE7      ; Access: Present(1), DPL=3, 286 Trap Gate
     mov word [es:di + 6], 0x0000    ; Reserved
     ret
 

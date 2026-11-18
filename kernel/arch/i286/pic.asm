@@ -100,6 +100,10 @@ irq0_timer_handler:
     out PIC1_CMD, al
 
     pop ax
+
+    ; Call scheduler timer tick hook
+    call sched_tick
+
     iret
 
 section .data

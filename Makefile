@@ -14,7 +14,7 @@ TOOLS_DIR  := tools
 
 BOOTSECT_SRC := $(BOOT_DIR)/bootsect.asm
 SETUP_SRC    := $(BOOT_DIR)/setup.asm
-KERNEL_SRCS  := $(wildcard $(KERNEL_DIR)/arch/i286/*.asm) $(wildcard $(KERNEL_DIR)/mm/*.asm)
+KERNEL_SRCS  := $(wildcard $(KERNEL_DIR)/arch/i286/*.asm) $(wildcard $(KERNEL_DIR)/mm/*.asm) $(wildcard $(KERNEL_DIR)/sched/*.asm) $(wildcard $(KERNEL_DIR)/sys/*.asm)
 
 BOOTSECT_BIN := $(BUILD_DIR)/bootsect.bin
 SETUP_BIN    := $(BUILD_DIR)/setup.bin

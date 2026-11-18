@@ -98,6 +98,56 @@ def check_asm_file(path: pathlib.Path) -> list[str]:
     return errors
 
 
+def check_disasm_file(path: pathlib.Path) -> list[str]:
+    """Verify ndisasm/objdump disassembly listings for 80286 compliance."""
+    errors: list[str] = []
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+    # If accompanied by Lin286 binary header, determine text section limit
+    text_limit = None
+    bin_path = path.with_suffix(".bin")
+    if bin_path.is_file():
+        raw_bin = bin_path.read_bytes()
+        if len(raw_bin) >= 16:
+            magic = int.from_bytes(raw_bin[10:12], byteorder="little")
+            if magic == 0x2860:
+                text_limit = int.from_bytes(raw_bin[4:6], byteorder="little")
+
+    for lineno, raw_line in enumerate(text.splitlines(), start=1):
+        if not raw_line.strip():
+            continue
+
+        # ndisasm format: <offset:8>  <hex_bytes>  <instruction>
+        m = re.match(r"^\s*([0-9A-Fa-f]{4,8})\s+[0-9A-Fa-f]+\s+(.*)$", raw_line)
+        if m:
+            offset = int(m.group(1), 16)
+            code = m.group(2).strip()
+
+            # Skip header fields in Lin286 kernel binary (offsets 0x0004 to 0x000F)
+            if text_limit is not None and 0x0004 <= offset < 0x0010:
+                continue
+
+            # Skip embedded data section (.data/.bss) placed after .text
+            if text_limit is not None and offset >= text_limit:
+                continue
+        else:
+            code = strip_asm_comments_and_strings(raw_line)
+
+        reg_match = FORBIDDEN_REGISTERS.search(code)
+        if reg_match:
+            errors.append(
+                f"{path}:{lineno}: Forbidden 80386+ register '{reg_match.group(0)}' in: {raw_line.strip()}"
+            )
+
+        mnem_match = FORBIDDEN_MNEMONICS.search(code)
+        if mnem_match:
+            errors.append(
+                f"{path}:{lineno}: Forbidden 80386+ instruction/prefix '{mnem_match.group(0)}' in: {raw_line.strip()}"
+            )
+
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate strict 80286 instruction compliance.")
     parser.add_argument(
@@ -135,7 +185,7 @@ def main() -> int:
     for item in args.disasm:
         p = pathlib.Path(item)
         if p.is_file():
-            all_errors.extend(check_asm_file(p))
+            all_errors.extend(check_disasm_file(p))
 
     if all_errors:
         print("80286 Compliance Check FAILED:", file=sys.stderr)

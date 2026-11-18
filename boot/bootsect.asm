@@ -65,7 +65,7 @@ start:
     mov es, ax
     xor bx, bx              ; ES:BX = 0x0100:0x0000 (phys 0x001000)
 
-    mov cx, 24              ; Total sectors to load (12 KB, kernel is ~8.5 KB)
+    mov cx, 28              ; Total sectors to load (14 KB, kernel is 13.5 KB)
     mov bp, 5               ; Starting LBA = 5
 
 .load_kernel_loop:

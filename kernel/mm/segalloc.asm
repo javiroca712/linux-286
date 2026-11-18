@@ -20,6 +20,8 @@ BITS 16
 global seg_init
 global seg_alloc
 global seg_free
+global seg_realloc
+global seg_get_block_ptr
 global seg_compact
 global seg_get_free_kb
 global seg_dump
@@ -786,7 +788,109 @@ seg_dump:
     popa
     ret
 
+; ----------------------------------------------------------------------------
+; seg_get_block_ptr: Get pointer to struct seg_block in kernel DS
+;
+; Input:
+;   AX = Block Index (0 .. MAX_SEG_BLOCKS - 1)
+; Output:
+;   DI = Offset in DS of struct seg_block
+; ----------------------------------------------------------------------------
+seg_get_block_ptr:
+    push ax
+    xor ah, ah
+    shl ax, 4                           ; AX = index * 16
+    add ax, seg_blocks
+    mov di, ax
+    pop ax
+    ret
+
+; ----------------------------------------------------------------------------
+; seg_realloc: Reallocate segment to a new size in paragraphs
+;
+; Inputs:
+;   AX = Old Block Index
+;   BX = Requested New Size in Paragraphs
+; Outputs:
+;   AX = New Block Index (or 0xFFFF on failure)
+;   DL:SI = New Physical Base Address (DL=high, SI=low)
+; ----------------------------------------------------------------------------
+seg_realloc:
+    push bp
+    push cx
+    push di
+
+    mov [realloc_old_blk], ax
+    mov [realloc_new_paras], bx
+
+    call seg_get_block_ptr              ; DI = &seg_blocks[old_blk]
+    mov [realloc_old_ptr], di
+
+    mov cx, [di + SB_SIZE_PARAS]
+    cmp bx, cx
+    jbe .realloc_shrink
+
+    ; Growth requested: allocate new segment
+    mov cx, [realloc_new_paras]         ; CX = size in paragraphs
+    mov bl, [di + SB_POOL_ID]           ; BL = preferred pool
+    mov bh, [di + SB_OWNER_PID]         ; BH = owner PID
+    call seg_alloc
+    cmp ax, 0xFFFF
+    je .realloc_fail
+
+    mov [realloc_new_blk], ax
+    call seg_get_block_ptr              ; DI = &seg_blocks[new_blk]
+    mov si, [di + SB_BASE_LOW]
+    mov dl, [di + SB_BASE_HIGH]
+    mov [realloc_new_low], si
+    mov [realloc_new_high], dl
+
+    ; Copy old content to new buffer via phys_copy
+    mov di, [realloc_old_ptr]
+    mov cx, [di + SB_SIZE_PARAS]
+    shl cx, 4                           ; Paras -> bytes
+
+    ; Phys copy: DL=src_high, SI=src_low, DH=dst_high, DI=dst_low, CX=count
+    mov dl, [di + SB_BASE_HIGH]
+    mov si, [di + SB_BASE_LOW]
+    mov dh, [realloc_new_high]
+    mov di, [realloc_new_low]
+    call phys_copy
+
+    ; Free old block
+    mov ax, [realloc_old_blk]
+    call seg_free
+
+    ; Return new block info
+    mov ax, [realloc_new_blk]
+    mov dl, [realloc_new_high]
+    mov si, [realloc_new_low]
+    jmp .realloc_exit
+
+.realloc_shrink:
+    ; Shrinking or same size: keep current block
+    mov ax, [realloc_old_blk]
+    mov di, [realloc_old_ptr]
+    mov dl, [di + SB_BASE_HIGH]
+    mov si, [di + SB_BASE_LOW]
+    jmp .realloc_exit
+
+.realloc_fail:
+    mov ax, 0xFFFF
+
+.realloc_exit:
+    pop di
+    pop cx
+    pop bp
+    ret
+
 section .data
+realloc_old_blk:    dw 0
+realloc_new_blk:    dw 0
+realloc_new_paras:  dw 0
+realloc_old_ptr:    dw 0
+realloc_new_low:    dw 0
+realloc_new_high:   db 0
 target_base_low:    dw 0
 target_base_high:   db 0
 best_idx:           dw 0
