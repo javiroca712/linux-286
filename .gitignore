@@ -1,0 +1,34 @@
+# Build artifacts and disk images
+build/
+dist/
+*.bin
+*.o
+*.obj
+*.elf
+*.out
+*.map
+*.lst
+*.img
+*.flp
+*.vhd
+*.iso
+
+# Emulator logs and state
+bochsout.txt
+bx_enh_dbg.ini
+qemu.log
+serial.log
+86box.cfg
+nvr/
+
+# Python / Host tools
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
