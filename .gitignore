@@ -26,6 +26,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+tools/bin/
 
 # Editor / OS files
 .vscode/

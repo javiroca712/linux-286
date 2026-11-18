@@ -1,0 +1,18 @@
+# ============================================================================
+# Bochs Configuration for Lin286 Headless Verification
+# ============================================================================
+
+megs: 1
+cpu: count=1, ips=10000000, reset_on_triple_fault=0
+romimage: file=/usr/share/seabios/bios.bin
+vgaromimage: file=/usr/share/seabios/vgabios.bin
+floppya: 1_44="build/floppy.img", status=inserted
+boot: floppy
+speaker: enabled=0
+display_library: rfb, options="nodisplay"
+com1: enabled=1, mode=file, dev="build/serial.log"
+log: build/bochs.log
+panic: action=fatal
+error: action=report
+info: action=report
+debug: action=ignore

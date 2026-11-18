@@ -7,31 +7,32 @@ This roadmap structures development into deterministic, self-verifying milestone
 ## Phase 0: Toolchain, Static Gatekeeper & Emulator Harness
 **Goal:** Establish a sub-second build-and-verify loop that rejects non-80286 instructions at build time and captures serial telemetry at runtime.
 * [x] Repository structure, `SPEC.md`, `AGENTS.md`, `.agents/skills/build-test-286`, and `check_286_opcodes.py` gatekeeper.
-* [ ] Build system (`Makefile` / PowerShell / WSL wrapper) targeting `NASM` (`CPU 286`) and `ia16-elf-gcc` / `OpenWatcom`.
-* [ ] Headless emulator runner (`Bochs` CPU-level 2 / `QEMU` / `86Box`) streaming `COM1` (`0x3F8`) to stdout with automated timeout and exit-code assertions.
+* [x] Build system (`Makefile` / PowerShell / WSL wrapper) targeting `NASM` (`CPU 286`) and `ia16-elf-gcc` / `OpenWatcom`.
+* [x] Headless emulator runner (`Bochs` CPU-level 2 / `QEMU` / `86Box`) streaming `COM1` (`0x3F8`) to stdout with automated timeout and exit-code assertions.
 
 ## Phase 1: Bootloader, A20, CMOS Autodetect & 80286 Protected Mode Switch
 **Goal:** Boot from floppy/MBR, enable A20, initialize GDT/IDT, enter 16-bit Protected Mode via `LMSW`, read CMOS RAM/RTC, and print diagnostic output over `COM1` and VGA.
-* [ ] Stage 1 (`boot/bootsect.asm`): Load Stage 2 + Kernel image from disk.
-* [ ] Stage 2 (`boot/setup.asm`):
+* [x] Stage 1 (`boot/bootsect.asm`): Load Stage 2 + Kernel image from disk.
+* [x] Stage 2 (`boot/setup.asm`):
   * Detect conventional and extended (`INT 15h AH=88h`) memory size.
   * Enable A20 gate (8042 keyboard controller + Fast A20 fallback).
   * Load temporary GDT & IDT and execute `LMSW` (`PE=1`) + far jump `jmp 0x0008:pm_entry`.
-* [ ] Ring 0 Early Kernel (`kernel/arch/i286/`):
+* [x] Ring 0 Early Kernel (`kernel/arch/i286/`):
   * Initialize 8250 UART (`COM1`), dual-display text console (`0xB8000` / `0xB0000`), and MC146818 CMOS RTC/RAM autodetect (`0x70`/`0x71`).
   * Remap 8259A PIC (`0x20`–`0x2F`) and start 8253 PIT at 100 Hz.
   * Install CPU exception handlers (`INT 0`–`INT 13`: `#UD`, `#NM` 80287 lazy FPU, `#DF`, `#TS`, `#NP`, `#SS`, `#GP`) and interactive `kdb286` serial/console crash monitor.
-* **Verification Gate:** Trigger deliberate `#GP` and `#NP` faults in Ring 0/Ring 3 and verify structured crash dumps over `COM1`.
+* [x] **Verification Gate:** Trigger deliberate `#GP` and `#NP` faults in Ring 0/Ring 3 and verify structured crash dumps over `COM1`.
 
 ## Phase 2: 24-Bit Segment Memory Manager & Virtual Memory Core
 **Goal:** Manage all 860 KB of user RAM (Conventional + Extended) with per-process LDTs, Copy-on-Write, and `#NP` demand swapping.
-* [ ] Physical segment allocator (`kernel/mm/segalloc.c`) spanning Pool A (`0x029000`–`0x09FFFF`) and Pool B (`0x100000`–`0x15FFFF`) with segment compaction.
-* [ ] GDT Scratch Copy Windows (`0x0028`, `0x0030`) for fast cross-segment physical memory copies anywhere in the 16 MB address space.
-* [ ] LDT manager (`kernel/arch/i286/ldt.c`) + shared 286 TSS (`0x0038`) for Ring 3 $\rightarrow$ Ring 0 stack switching.
-* [ ] Virtual Memory handlers (`kernel/mm/vm286.c`):
+* [x] Physical segment allocator (`kernel/mm/segalloc.asm`, `include/mm/segalloc.h`) spanning Pool A (`0x029000`–`0x09FFFF`) and Pool B (`0x100000`–`0x15FFFF`) with bidirectional free coalescing and live segment compaction.
+* [x] GDT Scratch Copy Windows (`0x0028`, `0x0030`, `kernel/arch/i286/copy_win.asm`) for fast cross-segment physical memory copies anywhere in the 16 MB address space via `rep movsw`.
+* [x] LDT manager (`kernel/arch/i286/ldt.asm`) + shared 286 TSS (`0x0038`) for per-task descriptor isolation and Ring 3 $\rightarrow$ Ring 0 stack switching.
+* [x] Virtual Memory handlers (`kernel/mm/vm286.asm`, `include/mm/vm286.h`):
   * `#GP` Copy-on-Write (`CoW`) unsharing and software `VM_DIRTY` bit tracking.
   * `#NP` (`INT 11`) demand segment loader and Clock-LRU eviction scanner using the hardware `Accessed` bit.
   * `#SS` (`INT 12`) dynamic stack expansion.
+* [x] **Verification Gate:** Verified 7-stage automated self-test suite (Memory Allocation, Free Coalescing, Compaction, Cross-Pool GDT Copy, LLDT Task Switching, CoW `#GP` Unsharing, Demand-Loading `#NP`, and `#SS` Stack Growth).
 
 ## Phase 3: Multitasking, Process Lifecycle & `INT 0x80` Syscalls
 **Goal:** Preemptive multitasking of Ring 3 processes with ELKS-compatible `a.out` binary loading.

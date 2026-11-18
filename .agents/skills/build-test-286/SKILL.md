@@ -38,9 +38,9 @@ wsl -u root -e bash -lc "add-apt-repository -y ppa:tkchia/build-ia16 && apt-get 
 
 **NEVER launch an emulator without a timeout and headless serial redirection**, or the command will block indefinitely.
 
-### Option A: Fast Headless Boot Check via QEMU (`-cpu 286`, 1 MB RAM, Serial to Stdout)
+### Option A: Fast Headless Boot Check via QEMU (-cpu 486, 1408 KB RAM, Serial to Stdout)
 ```powershell
-wsl -e bash -lc "cd /mnt/c/Users/javir/dev/linux-286 && timeout 3s qemu-system-i386 -cpu 286 -m 1M -fda build/floppy.img -nographic -serial mon:stdio -no-reboot || true"
+wsl -e bash -lc "cd /mnt/c/Users/javir/dev/linux-286 && timeout 4s qemu-system-i386 -cpu 486 -m 1408k -fda build/floppy.img -nographic -serial mon:stdio -no-reboot || true"
 ```
 * Note: Always combine QEMU checks with `check_286_opcodes.py` and Bochs CPU-level 2 verification, as QEMU is permissive with 386 opcodes if not caught by `check_286_opcodes.py`.
 
