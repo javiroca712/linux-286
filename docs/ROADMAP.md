@@ -52,7 +52,15 @@ This roadmap structures development into deterministic, self-verifying milestone
 * [ ] VT102 / ANSI console driver with 4 Virtual Consoles (`Alt+F1`–`Alt+F4`) + serial `getty` on `/dev/ttyS0`.
 * [ ] Integrate `elks-libc` + Bourne shell (`ash`/`sash`) + core utilities (`ls`, `cat`, `ps`, `free`, `mount`, `vi`, `grep`) on root disk image.
 
-## Phase 6: Enthusiast Polish & Release Packaging
+## Phase 6: Protected-Mode GUI Subsystem (`/dev/fb0`, Shared LDT IPC & Nano-X)
+**Goal:** Run a mouse-driven windowed GUI on Virtual Console 5 (`Alt+F5`) at 640×480 (VGA) / 640×350 (EGA) / 720×348 (Hercules) with zero syscall overhead per pixel.
+* [ ] Native Protected-Mode VGA/EGA/CGA/Hercules register driver (`kernel/drivers/fb286.c`) implementing `/dev/fb0` (`FBIOSET_MODE`, `FBIOMAP_LDT`, `FBIOSET_IOPL3`).
+* [ ] Map 64 KB Video Aperture (`0xA0000` / `0xB0000`) into the Display Server's LDT (`LDT_UFB_SEL = 0x001F`) with `FLAGS.IOPL = 3` for direct bitplane register writes.
+* [ ] Zero-copy LDT-aliased Shared Memory (`shmget286`/`shmat286`) in Extended RAM (`0x100000+`) for fast client-to-server window blitting.
+* [ ] RS-232 Serial Mouse driver (`/dev/mouse` Microsoft 3-byte & Mouse Systems protocol).
+* [ ] Port/integrate **Microwindows / Nano-X** (`nanox` server, `nanowm` window manager, `nxterm` terminal, `nxclock`, `nxcalc`) onto `tty5` (`Alt+F5`).
+
+## Phase 7: Enthusiast Polish & Release Packaging
 * [ ] Single-floppy (1.44 MB / 1.2 MB) and CF/IDE hard disk image builder.
-* [ ] 86Box hardware validation profile (IBM 5170 AT, 12 MHz 286, 1 MB RAM, ISA IDE/VGA).
+* [ ] 86Box hardware validation profile (IBM 5170 AT, 12 MHz 286, 1 MB RAM, ISA IDE/VGA + Serial Mouse).
 * [ ] Self-hosting on-target assembler/compiler package.

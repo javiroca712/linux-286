@@ -23,6 +23,8 @@ Historically, open-source Unix/Linux projects either stayed in **8086 Real Mode*
   * **Dynamic Stack Growth** via expand-down stack segments and **Interrupt 12 (`#SS`)**.
 * **Drop-In ELKS `a.out` Binary Compatibility (`INT 0x80`):**
   Executes standard 16-bit Split-I&D (`a.out`) userland binaries (`ash`, `vi`, `ls`, `grep`, `cat`, `sed`) compiled with `ia16-elf-gcc -melks` directly in Ring 3 Protected Mode.
+* **Zero-Overhead Protected-Mode GUI (`Nano-X` on `/dev/fb0`):**
+  Supports a mouse-driven windowed GUI at `640×480` (VGA), `640×350` (EGA), or `720×348` (Hercules) on `Alt+F5` by mapping the 64 KB video aperture (`0xA0000`/`0xB0000`) directly into the display server's LDT (`0x001F`), granting selective `FLAGS.IOPL = 3` for native bitplane register access, and aliasing Extended RAM segments across LDTs for zero-copy shared window buffers.
 * **Retro-Hardware Interoperability:**
   Supports **Minix v1/v2** root filesystems alongside **FAT12/FAT16** for seamless file exchange with MS-DOS / FreeDOS on CompactFlash cards, XT-IDE adapters, and 1.44 MB / 1.2 MB floppies.
 
@@ -35,18 +37,19 @@ linux-286/
 ├── boot/               # Stage 1 (MBR/Floppy) & Stage 2 (A20, GDT, 286 PM switch)
 ├── kernel/             # Ring 0 monolithic kernel
 │   ├── arch/i286/      # GDT, LDT, IDT, TSS, #NP/#GP/#SS fault handlers, INT 0x80
-│   ├── mm/             # 24-bit segment allocator, CoW fork, Clock-LRU swapper
+│   ├── mm/             # 24-bit segment allocator, CoW fork, LDT shm, Clock-LRU swapper
 │   ├── proc/           # Preemptive scheduler, fork, execve (a.out), waitpid, signals
 │   ├── fs/             # VFS, buffer cache, Minix v1/v2, FAT12/16, /dev, /proc
-│   └── drivers/        # 8259 PIC, 8253 PIT, 8250/16550 UART, PIO IDE/XT-IDE, FDC, VT102 Console
+│   └── drivers/        # PIC, PIT, UART, PIO IDE/XT-IDE, FDC, VT102, /dev/fb0, /dev/mouse
 ├── include/            # Kernel and POSIX/UAPI headers
-│   └── arch/i286.h     # 80286 hardware descriptor & selector definitions
+│   ├── arch/i286.h     # 80286 hardware descriptor, selector & IOPL definitions
+│   └── uapi/fb286.h    # Protected-Mode framebuffer, LDT shared memory & mouse UAPI
 ├── libc/               # Minimal POSIX.1-1988 C library & syscall stubs
-├── user/               # Init, shell, and native 286 diagnostic tools
+├── user/               # Init, shell, Nano-X GUI integration & 286 diagnostic tools
 ├── tools/              # Build scripts & agentic verification guardrails
 │   └── check_286_opcodes.py  # Static gatekeeper rejecting 386+ opcodes & 0x66/0x67 prefixes
 └── docs/
-    ├── SPEC.md         # Full architectural & ABI specification
+    ├── SPEC.md         # Full architectural, VM, GUI & ABI specification
     └── ROADMAP.md      # Phased development milestones & test harness design
 ```
 

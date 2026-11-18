@@ -31,6 +31,8 @@
 #define LDT_UCODE_SEL   (0x0000 | TI_LDT | RPL_RING3) /* 0x0007: User CS */
 #define LDT_UDATA_SEL   (0x0008 | TI_LDT | RPL_RING3) /* 0x000F: User DS/ES/SS */
 #define LDT_USTACK_SEL  (0x0010 | TI_LDT | RPL_RING3) /* 0x0017: Optional Expand-Down SS */
+#define LDT_UFB_SEL     (0x0018 | TI_LDT | RPL_RING3) /* 0x001F: Direct 64KB Video Framebuffer (0xA0000/0xB0000) */
+#define LDT_USHM_BASE   (0x0020 | TI_LDT | RPL_RING3) /* 0x0027+: Shared Memory & Tiled VM Segments */
 
 /* 80286 Access Byte Flags (Byte 5 of Descriptor) */
 #define DESC_PRESENT    0x80    /* Bit 7: Segment Present in physical RAM */
@@ -60,6 +62,15 @@
 #define VM_FLAG_DIRTY   0x0002  /* Modified since loaded from disk/swap */
 #define VM_FLAG_SWAPPED 0x0004  /* Base/Limit holds swap block token (P=0) */
 #define VM_FLAG_DEMAND  0x0008  /* Demand-load from executable inode on #NP */
+#define VM_FLAG_SHM     0x0010  /* Shared memory segment (aliased across LDTs, refcounted) */
+#define VM_FLAG_MMIO    0x0020  /* Hardware MMIO aperture (e.g. 0xA0000 VRAM; pinned, never swapped) */
+
+/* 80286 FLAGS Register Bits (specifically for Ring 3 IOPL control) */
+#define FLAGS_IF        0x0200  /* Interrupt Enable */
+#define FLAGS_IOPL_MASK 0x3000  /* Bits 12-13: I/O Privilege Level */
+#define FLAGS_IOPL_0    0x0000  /* Standard user processes: IN/OUT traps #GP(0) */
+#define FLAGS_IOPL_3    0x3000  /* Display Server process: direct Ring 3 VGA bitplane IN/OUT */
+#define FLAGS_NT        0x4000  /* Nested Task flag */
 
 /* 80286 8-Byte Segment Descriptor */
 struct __attribute__((packed)) desc286 {

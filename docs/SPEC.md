@@ -57,7 +57,8 @@ Each process has a compact LDT enabling isolated Ring 3 execution and zero-reloc
 | `0x0007` | 0 | Code (E/R, DPL=3) | Process Text Segment (`CS`, shared read-only across instances) |
 | `0x000F` | 1 | Data (R/W, DPL=3) | Process Data + BSS + Heap + Stack (`DS`/`ES`/`SS` in standard Split-I&D mode) |
 | `0x0017` | 2 | Stack (Expand-Down, DPL=3) | Optional dedicated Stack Segment (`SS`) in extended 286-native mode |
-| `0x001F+`| `3..K` | Code/Data (DPL=3) | Dynamic "Tiled" Virtual Memory Segments (4 KB–64 KB blocks) |
+| `0x001F` | 3 | Data (R/W, DPL=3, MMIO) | Direct 64 KB Video Framebuffer (`0xA0000` EGA/VGA or `0xB0000` HGC; mapped via `/dev/fb0`) |
+| `0x0027+`| `4..K` | Code/Data (DPL=3) | Zero-Copy Shared Memory (`VM_FLAG_SHM`) & Dynamic "Tiled" Virtual Memory Segments |
 
 ---
 
@@ -95,7 +96,39 @@ Supports the standard 16-bit Split-I&D MINIX/ELKS `a.out` header (32 bytes):
 
 ---
 
-## 5. Agentic Development Guardrails
+## 5. Protected-Mode Graphical Subsystem (GUI & Direct Framebuffer)
+
+`linux-286` supports a full mouse-driven, windowed GUI stack (**Microwindows / Nano-X** running on Virtual Console 5, `Alt+F5`) at `640x480x16` (VGA), `640x350x16` (EGA), `640x200x2` (CGA), or `720x348x2` (Hercules) without ever leaving 80286 Protected Mode.
+
+### 5.1 Native Protected-Mode Video Mode Switching (`/dev/fb0`)
+Because the 80286 cannot call Real-Mode BIOS `INT 10h` from Protected Mode without a CPU reset, `kernel/drivers/fb286.c` contains static hardware register tables for VGA/EGA/CGA/Hercules CRT Controller (`0x3D4`/`0x3B4`), Sequencer (`0x3C4`), Graphics Controller (`0x3CE`), and Attribute Controller (`0x3C0`). Calling `ioctl(fd, FBIOSET_MODE, mode)` programs the graphics adapter cleanly in Ring 0.
+
+### 5.2 Three Zero-Overhead 80286 Hardware Mechanisms for Fast GUI Rendering
+To achieve native bus-speed graphics on an 8–12 MHz 80286 without per-pixel system call overhead:
+1. **Direct 64 KB Hardware Framebuffer LDT Descriptor (`LDT_UFB_SEL = 0x001F`):**
+   * Calling `ioctl(fd, FBIOMAP_LDT, &info)` populates LDT Index 3 (`Selector 0x001F`, `DPL=3`, `VM_FLAG_MMIO`) with `Physical Base = 0x0A0000` (or `0x0B0000` for Hercules) and `Limit = 0xFFFF` (64 KB).
+   * The Ring 3 Display Server loads `ES = 0x001F` and blits scanlines directly into video RAM using `REP MOVSW`.
+2. **Selective Ring 3 `FLAGS.IOPL = 3` for Display Server Bitplane Control:**
+   * 16-color planar EGA/VGA modes require frequent writes to Sequencer (`0x3C4`) and Graphics Controller (`0x3CE`) I/O ports.
+   * Calling `ioctl(fd, FBIOSET_IOPL3, 1)` sets bits 12–13 (`IOPL = 3`) in the Display Server's saved Ring 3 `FLAGS` image on the kernel stack.
+   * The Display Server executes `OUT DX, AX` directly in Ring 3 at zero overhead, while regular user processes remain at `IOPL = 0` (hardware-protected from port I/O).
+3. **Zero-Copy Shared Memory (`VM_FLAG_SHM`) via LDT Aliasing:**
+   * GUI client applications allocate shared offscreen window buffers in Extended RAM (`0x100000+`) via `shmget286` / `shmat286`.
+   * The kernel maps the **exact same 24-bit physical base address** into both the client's LDT and the Display Server's LDT (`0x0027+`). Clients draw into their local selector and send an 8-byte damage event to the Display Server, which blits directly from the shared segment to `0xA0000` VRAM.
+
+### 5.3 Mouse & Virtual Console Integration (`/dev/mouse` & `Alt+F5`)
+* **Mouse Driver (`kernel/drivers/mouse.c`):** Parses 1200-baud RS-232 Microsoft (3-byte) and Mouse Systems (5-byte) packets from `COM1`/`COM2` into normalized `struct mouse286_event` packets on `/dev/mouse`.
+* **VT Switching:** `Alt+F1`–`Alt+F4` switch between 80×25 text consoles (`tty1`–`tty4`), while `Alt+F5` switches to the graphical Display Server (`tty5`), signaling the server to restore graphics mode and redraw damaged windows.
+
+### 5.4 GUI Memory Budget on 1 MB Hardware
+* **Kernel (Ring 0):** ~160 KB
+* **Nano-X Display Server (`nanox`) + Planar VGA Driver:** ~76 KB
+* **Window Manager (`nanowm`) + Graphical Terminal (`nxterm`) + Shell + Desktop Applets:** ~134 KB
+* **Remaining Free RAM for User Applications & Shared Buffers:** **~650 KB**
+
+---
+
+## 6. Agentic Development Guardrails
 
 To prevent LLM 386+ instruction bleed and Real-Mode segment bugs:
 1. **Mandatory `CPU 286` Directive:** Every `.asm` file must begin with `CPU 286` and `BITS 16`.
