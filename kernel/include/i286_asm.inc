@@ -168,3 +168,140 @@ TS_SIG_HANDLERS equ 28  ; 16 dw = 32 bytes (offsets 28..59)
 TS_PADDING      equ 60  ; 4 bytes padding
 TASK_STRUCT_SIZE equ 64
 
+; ============================================================================
+; Phase 4: Block Drivers, Buffer Cache, VFS & Filesystem Definitions
+; ============================================================================
+
+; Standard POSIX Error Codes
+ENOENT          equ 2
+EIO             equ 5
+EBADF           equ 9
+ENOMEM          equ 12
+EACCES          equ 13
+EEXIST          equ 17
+ENODEV          equ 19
+ENOTDIR         equ 20
+EISDIR          equ 21
+EINVAL          equ 22
+ENFILE          equ 23
+EMFILE          equ 24
+ENOSPC          equ 28
+ESPIPE          equ 29
+
+; Additional Phase 4 Syscalls
+SYS_MOUNT       equ 21
+SYS_STAT        equ 18
+SYS_LSEEK       equ 19
+SYS_FSTAT       equ 28
+
+; Block Devices
+DEV_RAM0        equ 0x0100  ; Major 1, Minor 0
+DEV_FD0         equ 0x0200  ; Major 2, Minor 0
+DEV_HDA         equ 0x0300  ; Major 3, Minor 0 (Primary Master)
+DEV_HDB         equ 0x0340  ; Major 3, Minor 64 (Primary Slave)
+
+SECTOR_SIZE     equ 512
+BLOCK_SIZE      equ 1024
+RAMDISK_SECTORS equ 128     ; 64 KB RAM disk
+
+; ATA / IDE Controller Ports & Commands
+IDE_PORT_DATA   equ 0x1F0
+IDE_PORT_ERR    equ 0x1F1
+IDE_PORT_SEC_CNT equ 0x1F2
+IDE_PORT_LBA_LO equ 0x1F3
+IDE_PORT_LBA_MID equ 0x1F4
+IDE_PORT_LBA_HI equ 0x1F5
+IDE_PORT_DRV    equ 0x1F6
+IDE_PORT_STATUS equ 0x1F7
+IDE_PORT_CTRL   equ 0x3F6
+
+IDE_CMD_READ    equ 0x20
+IDE_CMD_WRITE   equ 0x30
+IDE_CMD_IDENTIFY equ 0xEC
+
+IDE_STATUS_ERR  equ 0x01
+IDE_STATUS_DRQ  equ 0x08
+IDE_STATUS_DF   equ 0x20
+IDE_STATUS_DRDY equ 0x40
+IDE_STATUS_BSY  equ 0x80
+
+; Buffer Cache Constants
+NR_BUFFERS      equ 8
+BUF_BUSY        equ 0x0001
+BUF_VALID       equ 0x0002
+BUF_DIRTY       equ 0x0004
+
+; struct buf offsets (18 bytes header)
+BUF_DEV         equ 0   ; dw (major:minor)
+BUF_BLOCK       equ 2   ; dw (block number)
+BUF_FLAGS       equ 4   ; dw (BUF_*)
+BUF_COUNT       equ 6   ; dw (refcount)
+BUF_DATA        equ 8   ; dw (pointer to 1024-byte buffer)
+BUF_NEXT_HASH   equ 10  ; dw
+BUF_PREV_HASH   equ 12  ; dw
+BUF_NEXT_LRU    equ 14  ; dw
+BUF_PREV_LRU    equ 16  ; dw
+BUF_HDR_SIZE    equ 18
+
+; VFS Modes and Flags
+S_IFMT          equ 0xF000
+S_IFREG         equ 0x8000
+S_IFDIR         equ 0x4000
+S_IFCHR         equ 0x2000
+S_IFBLK         equ 0x6000
+
+O_RDONLY        equ 0
+O_WRONLY        equ 1
+O_RDWR          equ 2
+O_CREAT         equ 0x0040
+O_TRUNC         equ 0x0200
+O_APPEND        equ 0x0400
+
+SEEK_SET        equ 0
+SEEK_CUR        equ 1
+SEEK_END        equ 2
+
+; Filesystem Types
+FS_TYPE_MINIX   equ 1
+FS_TYPE_FAT     equ 2
+FS_TYPE_DEVFS   equ 3
+FS_TYPE_PROCFS  equ 4
+
+; VFS Limits
+MAX_OPEN_FILES_PER_TASK equ 8
+MAX_VFS_FILES   equ 16
+MAX_VFS_INODES  equ 16
+MAX_VFS_MOUNTS  equ 4
+
+; struct vfs_inode Offsets (36 bytes)
+VINO_DEV        equ 0   ; dw
+VINO_INO        equ 2   ; dw
+VINO_MODE       equ 4   ; dw
+VINO_NLINK      equ 6   ; dw
+VINO_UID        equ 8   ; dw
+VINO_GID        equ 10  ; dw
+VINO_RDEV       equ 12  ; dw
+VINO_SIZE_LO    equ 14  ; dw
+VINO_SIZE_HI    equ 16  ; dw
+VINO_COUNT      equ 18  ; dw
+VINO_FLAGS      equ 20  ; dw
+VINO_FS_TYPE    equ 22  ; dw
+VINO_ZONE0      equ 24  ; 9 dw (18 bytes) = direct/indirect zones
+VINO_SB_PTR     equ 42  ; dw
+VINO_SIZE       equ 44
+
+; struct vfs_file Offsets (12 bytes)
+VFIL_INODE_PTR  equ 0   ; dw
+VFIL_POS_LO     equ 2   ; dw
+VFIL_POS_HI     equ 4   ; dw
+VFIL_MODE       equ 6   ; dw
+VFIL_COUNT      equ 8   ; dw
+VFIL_FLAGS      equ 10  ; dw
+VFIL_SIZE       equ 12
+
+; MINIX v1 constants
+MINIX_MAGIC_V1_14 equ 0x137F
+MINIX_MAGIC_V1_30 equ 0x138F
+MINIX_DIR_ENT_SIZE equ 16
+
+

@@ -107,12 +107,12 @@ gdtr_runtime_base_high:
 
 str_banner1:    db 13, 10
                 db "========================================================", 13, 10
-                db " Lin286 Kernel v0.3.0-phase3 (Intel 80286 Protected Mode)", 13, 10
+                db " Lin286 Kernel v0.4.0-phase4 (Intel 80286 Protected Mode)", 13, 10
                 db "========================================================", 13, 10, 0
 str_banner2:    db "[PM286] LMSW PE=1 active. Ring 0 execution established.", 13, 10
                 db "[PM286] CS=0x0008 (Base=0x001000) DS=SS=0x0010 (Base=0x019000)", 13, 10, 0
-str_vga_banner: db "Lin286 Kernel v0.3.0-phase3 (Intel 80286 Protected Mode, 1MB RAM)", 13, 10, 0
-str_ready:      db "[READY] Lin286 Phase 3 kernel initialized. Halting at idle.", 13, 10, 0
+str_vga_banner: db "Lin286 Kernel v0.4.0-phase4 (Intel 80286 Protected Mode, 1MB RAM)", 13, 10, 0
+str_ready:      db "[READY] Lin286 Phase 4 kernel initialized. Halting at idle.", 13, 10, 0
 
 section .bss
 bss_start:
@@ -184,9 +184,16 @@ _start:
     call sched_init
     call syscall_init
 
-    ; 11. Execute Verification Gate Self-Tests (Phase 1, 2, and 3)
+    ; 11. Initialize Phase 4 Subsystems:
+    ; - Unified Block Drivers (RAM disk, IDE ATA PIO)
+    ; - Buffer Cache (8 x 1024-byte buffers)
+    ; - Rootfs (Minix v1 on /), DOS (/dos), /dev, /proc
+    call vfs_init
+
+    ; 12. Execute Verification Gate Self-Tests (Phases 1, 2, 3, and 4)
     call run_verification_gate
     call run_phase3_verification_gate
+    call run_phase4_verification_gate
 
     ; Enable maskable interrupts for 100 Hz scheduler tick
     sti
@@ -216,8 +223,19 @@ _start:
 %include "kernel/sched/sched.asm"
 %include "kernel/arch/i286/syscall.asm"
 %include "kernel/sys/sys_proc.asm"
+%include "kernel/drivers/ramdisk.asm"
+%include "kernel/drivers/ide.asm"
+%include "kernel/drivers/blkdev.asm"
+%include "kernel/fs/bio.asm"
+%include "kernel/fs/minix.asm"
+%include "kernel/fs/fat.asm"
+%include "kernel/fs/devfs.asm"
+%include "kernel/fs/procfs.asm"
+%include "kernel/fs/vfs.asm"
+%include "kernel/sys/sys_file.asm"
 %include "kernel/arch/i286/selftest.asm"
 %include "kernel/arch/i286/selftest_phase3.asm"
+%include "kernel/arch/i286/selftest_phase4.asm"
 
 ; ----------------------------------------------------------------------------
 ; Section Boundary Anchors

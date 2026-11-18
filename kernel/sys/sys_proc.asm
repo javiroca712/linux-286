@@ -322,7 +322,13 @@ sys_fork:
     mov bx, [child_task_ptr]
     mov [bx + TS_KSP], di               ; Save stack pointer
 
+    ; Clone open file descriptors from parent to child
+    mov al, [current_task]
+    mov bl, [child_pid]
+    call vfs_clone_task_fds
+
     ; 5. Mark Child as TASK_READY
+    mov bx, [child_task_ptr]
     mov byte [bx + TS_STATE], TASK_READY
 
     ; Return child PID in AX to parent

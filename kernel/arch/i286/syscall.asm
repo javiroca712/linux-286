@@ -287,18 +287,21 @@ sys_call_table:
     dw sys_nosys                        ; 0: sys_setup / unused
     dw sys_exit                         ; 1: sys_exit
     dw sys_fork                         ; 2: sys_fork
-    dw sys_read                         ; 3: sys_read
-    dw sys_write                        ; 4: sys_write
-    dw sys_nosys                        ; 5: sys_open (placeholder)
-    dw sys_nosys                        ; 6: sys_close (placeholder)
+    dw sys_read_vfs                     ; 3: sys_read (VFS routed)
+    dw sys_write_vfs                    ; 4: sys_write (VFS routed)
+    dw sys_open                         ; 5: sys_open
+    dw sys_close                        ; 6: sys_close
     dw sys_waitpid                      ; 7: sys_waitpid
     times 3 dw sys_nosys                ; 8..10
     dw sys_execve                       ; 11: sys_execve
     times 5 dw sys_nosys                ; 12..16
     dw sys_brk                          ; 17: sys_brk
-    times 2 dw sys_nosys                ; 18..19
+    dw sys_stat                         ; 18: sys_stat
+    dw sys_lseek                        ; 19: sys_lseek
     dw sys_getpid                       ; 20: sys_getpid
-    times 16 dw sys_nosys               ; 21..36
+    times 7 dw sys_nosys                ; 21..27
+    dw sys_fstat                        ; 28: sys_fstat
+    times 8 dw sys_nosys                ; 29..36
     dw sys_kill                         ; 37: sys_kill
     times 10 dw sys_nosys               ; 38..47
     dw sys_signal                       ; 48: sys_signal

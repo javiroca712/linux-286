@@ -34,22 +34,22 @@ def create_floppy(
         raise ValueError(
             f"setup.bin ({len(setup)} bytes) exceeds 4 sectors (2048 bytes)"
         )
-    if len(kernel) > 64 * SECTOR_SIZE:
+    if len(kernel) > 96 * SECTOR_SIZE:
         raise ValueError(
-            f"kernel.bin ({len(kernel)} bytes) exceeds 64 sectors (32768 bytes)"
+            f"kernel.bin ({len(kernel)} bytes) exceeds 96 sectors (49152 bytes)"
         )
 
     # Pad setup to 4 sectors
     setup_padded = setup.ljust(4 * SECTOR_SIZE, b"\x00")
-    # Pad kernel to 64 sectors
-    kernel_padded = kernel.ljust(64 * SECTOR_SIZE, b"\x00")
+    # Pad kernel to 96 sectors
+    kernel_padded = kernel.ljust(96 * SECTOR_SIZE, b"\x00")
 
     image = bytearray(FLOPPY_SIZE)
     # LBA 0 (Sector 1)
     image[0:512] = bootsect
     # LBA 1..4 (Sectors 2..5)
     image[512 : 512 + len(setup_padded)] = setup_padded
-    # LBA 5..68 (Sectors 6..69)
+    # LBA 5..100 (Sectors 6..101)
     k_offset = 5 * SECTOR_SIZE
     image[k_offset : k_offset + len(kernel_padded)] = kernel_padded
 

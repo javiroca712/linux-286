@@ -43,6 +43,22 @@ REQUIRED_ASSERTIONS = [
     "[TEST 13] PASSED: POSIX signals (sys_signal, sys_kill) verified.",
     "[TEST 14] PASSED: Process termination (sys_exit) and child reaping (sys_waitpid) verified.",
     "[TEST] ALL PHASE 1, PHASE 2 & PHASE 3 VERIFICATIONS PASSED!",
+    "[BLKDEV] Block device subsystem initialized",
+    "[BIO] Buffer cache initialized (8 x 1024-byte buffers, 8 KB)",
+    "[MINIX] Minix v1 rootfs mounted on / (magic 0x137F, 1024-byte blocks)",
+    "[FAT] DOS FAT12/16 filesystem mounted on /dos",
+    "[DEVFS] Special device filesystem (/dev) initialized",
+    "[PROCFS] Synthetic /proc filesystem initialized",
+    "[VFS] Virtual File System core initialized (rootfs, /dos, /dev, /proc)",
+    "[TEST 15] PASSED: Block driver & PIO IDE / RAM disk verified.",
+    "[TEST 16] PASSED: Buffer cache (hit, LRU, bwrite dirty flushing) verified.",
+    "[TEST 17] PASSED: Minix v1 superblock & root directory (namei) verified.",
+    "[TEST 18] PASSED: Minix file creation, write & read via buffer cache verified.",
+    "[TEST 19] PASSED: DOS FAT12/16 mounting & file reading verified.",
+    "[TEST 20] PASSED: /dev character devices (null, zero, ttyS0) verified.",
+    "[TEST 21] PASSED: /proc synthetic telemetry (meminfo, cpuinfo) verified.",
+    "[TEST 22] PASSED: VFS file descriptors & INT 0x80 file syscalls verified.",
+    "[TEST] ALL PHASE 1, 2, 3 & 4 VERIFICATIONS PASSED!",
     "TEST PASS",
 ]
 
@@ -114,18 +130,37 @@ def run_qemu(timeout_sec: float) -> tuple[int, str]:
 
 
 def run_bochs(timeout_sec: float) -> tuple[int, str]:
-    wsl_cmd = (
-        f"cd /mnt/c/Users/javir/dev/linux-286 && "
-        f"timeout {int(timeout_sec)}s bochs -q -f tools/bochsrc_286.bxrc || true; "
-        f"cat build/serial.log 2>/dev/null || true"
-    )
-    proc = subprocess.run(
-        ["wsl", "-e", "bash", "-lc", wsl_cmd],
-        capture_output=True,
-        text=True,
-    )
-    output = proc.stdout + proc.stderr
-    return proc.returncode, output
+    use_wsl = False
+    try:
+        subprocess.run(["bochs", "--help"], capture_output=True)
+    except FileNotFoundError:
+        use_wsl = True
+
+    if use_wsl:
+        wsl_cmd = (
+            f"cd /mnt/c/Users/javir/dev/linux-286 && "
+            f"timeout {int(timeout_sec)}s bochs -q -f tools/bochsrc_286.bxrc || true; "
+            f"cat build/serial.log 2>/dev/null || true"
+        )
+        proc = subprocess.run(
+            ["wsl", "-e", "bash", "-lc", wsl_cmd],
+            capture_output=True,
+            text=True,
+        )
+        output = proc.stdout + proc.stderr
+        return proc.returncode, output
+    else:
+        cmd = (
+            f"timeout {int(timeout_sec)}s bochs -q -f tools/bochsrc_286.bxrc || true; "
+            f"cat build/serial.log 2>/dev/null || true"
+        )
+        proc = subprocess.run(
+            ["bash", "-lc", cmd],
+            capture_output=True,
+            text=True,
+        )
+        output = proc.stdout + proc.stderr
+        return proc.returncode, output
 
 
 def main() -> int:

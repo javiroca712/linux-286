@@ -43,10 +43,12 @@ This roadmap structures development into deterministic, self-verifying milestone
 
 ## Phase 4: Block Drivers, VFS & Filesystems
 **Goal:** Persistent storage on IDE/CF and Floppy with Minix rootfs and DOS FAT12/16 interoperability.
-* [ ] Native Protected-Mode PIO IDE/ATA & XT-IDE driver (`kernel/drivers/ide.c`) + RAM disk driver.
-* [ ] Buffer cache (`kernel/fs/bio.c`) and Linux-like VFS (`inode`, `file`, `super_block`, `dentry`).
-* [ ] **Minix v1 Filesystem** (read/write) for `/` + **FAT12/FAT16** for `/dos`.
-* [ ] `/dev` (`tty1`–`tty4`, `ttyS0`, `hda`, `fd0`, `null`, `zero`) and `/proc` (`meminfo`, `cpuinfo`, `ldt`, `<pid>/status`).
+* [x] Native Protected-Mode PIO IDE/ATA & XT-IDE driver (`kernel/drivers/ide.asm`, `include/drivers/ide.h`) + RAM disk driver (`kernel/drivers/ramdisk.asm`, `include/drivers/blkdev.h`) in Extended Memory.
+* [x] Buffer cache (`kernel/fs/bio.asm`, `include/fs/bio.h`: 8 x 1024-byte LRU buffers with dirty writeback) and Linux-like VFS (`kernel/fs/vfs.asm`, `include/fs/vfs.h`: inode, file, super_block, file descriptor table).
+* [x] **Minix v1 Filesystem** (`kernel/fs/minix.asm`, `include/fs/minix.h`: read/write) for `/` + **FAT12/FAT16** (`kernel/fs/fat.asm`, `include/fs/fat.h`) for `/dos`.
+* [x] `/dev` (`kernel/fs/devfs.asm`: `tty1`–`tty4`, `ttyS0`, `hda`, `fd0`, `null`, `zero`) and `/proc` (`kernel/fs/procfs.asm`: `meminfo`, `cpuinfo`, `ldt`, `tasks`).
+* [x] POSIX File System Syscalls (`kernel/sys/sys_file.asm`): `sys_open` (5), `sys_close` (6), `sys_read` (3), `sys_write` (4), `sys_lseek` (19), `sys_stat` (18), `sys_fstat` (28).
+* [x] **Verification Gate:** 22-stage automated self-test suite (Tests 1–14 regression + Test 15 Block driver & PIO IDE / RAM disk, Test 16 Buffer cache hit/LRU/dirty flushing, Test 17 Minix v1 superblock & root directory namei, Test 18 Minix file creation/write/read via buffer cache, Test 19 DOS FAT12/16 mounting & file reading, Test 20 /dev character devices, Test 21 /proc synthetic diagnostics telemetry, and Test 22 VFS file descriptors & INT 0x80 file syscalls).
 
 ## Phase 5: Terminal (`termios`), Virtual Consoles & Userland
 **Goal:** Boot into an interactive multi-console POSIX shell running unmodified ELKS `a.out` utilities and native 286 tools.

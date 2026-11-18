@@ -4,25 +4,38 @@ BITS 16
 ; ============================================================================
 ; Lin286 Stage 1 Boot Sector (MBR / Floppy)
 ;
-; Loaded at 0x0000:0x7C00 by BIOS.
-; Loads Stage 2 (setup.bin) to 0x9000:0x0200 and Kernel (kernel.bin) to 0x0100:0x0000.
+; Loaded at 0x0000:0x7C00 (0x07C0:0x0000) by BIOS.
+; Relocates itself to 0x9000:0x0000 to prevent being overwritten when
+; loading kernel images larger than 27 KB into 0x0100:0x0000.
+; Loads Stage 2 (setup.bin) to 0x9000:0x0200 and Kernel to 0x0100:0x0000.
 ; ============================================================================
 
-org 0x7C00
+org 0x0000
 
 start:
     cli
-    xor ax, ax
+    ; Relocate self from 0x07C0:0x0000 to 0x9000:0x0000
+    mov ax, 0x07C0
+    mov ds, ax
+    mov ax, 0x9000
+    mov es, ax
+    xor si, si
+    xor di, di
+    mov cx, 256
+    cld
+    rep movsw
+
+    ; Jump to relocated code in segment 0x9000
+    jmp 0x9000:relocated
+
+relocated:
+    mov ax, cs
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0x7C00          ; Stack grows downward from 0x7C00
+    mov sp, 0xFFF0          ; Stack at top of segment 0x9000
     sti
 
-    ; Normalize CS:IP
-    jmp 0x0000:.init_cs
-
-.init_cs:
     mov [boot_drive], dl    ; BIOS passes boot drive in DL
 
     ; Print boot greeting
@@ -58,14 +71,14 @@ start:
 
     ; ------------------------------------------------------------------------
     ; Load Kernel (kernel.bin)
-    ; LBA 5 (Sector 6 on Track 0, Head 0), 64 sectors (32 KB) -> 0x0100:0x0000
+    ; LBA 5 (Sector 6 on Track 0, Head 0), 96 sectors (48 KB) -> 0x0100:0x0000
     ; Physical address: 0x001000 (Kernel Code Base in SPEC.md)
     ; ------------------------------------------------------------------------
     mov ax, 0x0100
     mov es, ax
     xor bx, bx              ; ES:BX = 0x0100:0x0000 (phys 0x001000)
 
-    mov cx, 28              ; Total sectors to load (14 KB, kernel is 13.5 KB)
+    mov cx, 96              ; Total sectors to load (48 KB capacity)
     mov bp, 5               ; Starting LBA = 5
 
 .load_kernel_loop:
