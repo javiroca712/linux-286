@@ -90,70 +90,29 @@ REQUIRED_ASSERTIONS = [
 ]
 
 
-def run_qemu(timeout_sec: float) -> tuple[int, str]:
+def run_qemu(timeout_sec: float, use_ide: bool = False) -> tuple[int, str]:
     floppy = Path("build/floppy.img")
     if not floppy.exists():
         print(f"Error: {floppy} not found. Run make first.", file=sys.stderr)
         return 1, ""
 
-    # Command to run inside WSL or directly if QEMU is present
-    cmd = [
-        "qemu-system-i386",
-        "-cpu",
-        "486",
-        "-m",
-        "1408k",
-        "-fda",
-        "build/floppy.img",
-        "-nographic",
-        "-serial",
-        "mon:stdio",
-        "-no-reboot",
-    ]
-
-    # Check if qemu-system-i386 is available directly on host or via WSL
-    use_wsl = False
-    try:
-        subprocess.run(["qemu-system-i386", "--version"], capture_output=True)
-    except FileNotFoundError:
-        use_wsl = True
-
-    if use_wsl:
-        wsl_cmd = (
-            f"cd /mnt/c/Users/javir/dev/linux-286 && timeout {int(timeout_sec)}s "
-            f"qemu-system-i386 -cpu 486 -m 1408k -fda build/floppy.img -nographic -serial mon:stdio -no-reboot || true"
-        )
-        proc = subprocess.run(
-            ["wsl", "-e", "bash", "-lc", wsl_cmd],
-            capture_output=True,
-            text=True,
-        )
-        output = proc.stdout + proc.stderr
-        return proc.returncode, output
-    else:
-        try:
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout_sec,
-                errors="replace",
-            )
-            output = (proc.stdout or "") + (proc.stderr or "")
-            return proc.returncode, output
-        except subprocess.TimeoutExpired as e:
-            stdout = (
-                e.stdout.decode("utf-8", errors="replace")
-                if isinstance(e.stdout, bytes)
-                else (e.stdout or "")
-            )
-            stderr = (
-                e.stderr.decode("utf-8", errors="replace")
-                if isinstance(e.stderr, bytes)
-                else (e.stderr or "")
-            )
-            output = stdout + stderr
-            return 0, output
+    drive_flag = (
+        "-drive file=build/floppy.img,format=raw,if=ide"
+        if use_ide
+        else "-drive file=build/floppy.img,format=raw,if=floppy"
+    )
+    wsl_cmd = (
+        f"cd /mnt/c/Users/javir/dev/linux-286 && timeout {int(timeout_sec)}s "
+        f"qemu-system-i386 -cpu 486 -m 1408k {drive_flag} -nographic -serial mon:stdio -no-reboot || true\n"
+    )
+    proc = subprocess.run(
+        ["wsl", "-e", "bash"],
+        input=wsl_cmd,
+        capture_output=True,
+        text=True,
+    )
+    output = proc.stdout + proc.stderr
+    return proc.returncode, output
 
 
 def run_bochs(timeout_sec: float) -> tuple[int, str]:
@@ -203,6 +162,11 @@ def main() -> int:
         "--bochs", action="store_true", help="Run in Bochs instead of QEMU."
     )
     parser.add_argument(
+        "--ide",
+        action="store_true",
+        help="Boot image as a Primary Master IDE Hard Disk (0x80) instead of Floppy.",
+    )
+    parser.add_argument(
         "--timeout",
         type=float,
         default=4.0,
@@ -211,14 +175,14 @@ def main() -> int:
     args = parser.parse_args()
 
     print(
-        f"--- Starting Lin286 Headless Verification ({'Bochs' if args.bochs else 'QEMU'}) ---"
+        f"--- Starting Lin286 Headless Verification ({'Bochs' if args.bochs else ('IDE Hard Disk' if args.ide else 'Floppy')}) ---"
     )
     start_time = time.time()
 
     if args.bochs:
         code, output = run_bochs(args.timeout)
     else:
-        code, output = run_qemu(args.timeout)
+        code, output = run_qemu(args.timeout, use_ide=args.ide)
 
     elapsed = time.time() - start_time
     if isinstance(output, bytes):

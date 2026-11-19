@@ -12,7 +12,8 @@ Floppy Layout:
 import pathlib
 import sys
 
-FLOPPY_SIZE = 1440 * 1024  # 1,474,560 bytes
+FLOPPY_144_SIZE = 1440 * 1024  # 1,474,560 bytes (1.44 MB 3.5" / Universal IDE)
+FLOPPY_120_SIZE = 1200 * 1024  # 1,228,800 bytes (1.2 MB 5.25" High-Density)
 SECTOR_SIZE = 512
 
 
@@ -44,19 +45,23 @@ def create_floppy(
     # Pad kernel to 96 sectors
     kernel_padded = kernel.ljust(96 * SECTOR_SIZE, b"\x00")
 
-    image = bytearray(FLOPPY_SIZE)
-    # LBA 0 (Sector 1)
-    image[0:512] = bootsect
-    # LBA 1..4 (Sectors 2..5)
-    image[512 : 512 + len(setup_padded)] = setup_padded
-    # LBA 5..100 (Sectors 6..101)
-    k_offset = 5 * SECTOR_SIZE
-    image[k_offset : k_offset + len(kernel_padded)] = kernel_padded
+    for size, path_str in [
+        (FLOPPY_144_SIZE, output_path),
+        (FLOPPY_120_SIZE, str(pathlib.Path(output_path).with_name("floppy12.img"))),
+    ]:
+        image = bytearray(size)
+        # LBA 0 (Sector 1)
+        image[0:512] = bootsect
+        # LBA 1..4 (Sectors 2..5)
+        image[512 : 512 + len(setup_padded)] = setup_padded
+        # LBA 5..100 (Sectors 6..101)
+        k_offset = 5 * SECTOR_SIZE
+        image[k_offset : k_offset + len(kernel_padded)] = kernel_padded
 
-    out = pathlib.Path(output_path)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_bytes(image)
-    print(f"Created floppy disk image: {output_path} ({len(image)} bytes)")
+        out = pathlib.Path(path_str)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(image)
+        print(f"Created disk image: {path_str} ({len(image)} bytes)")
 
 
 if __name__ == "__main__":

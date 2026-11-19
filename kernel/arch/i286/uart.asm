@@ -59,24 +59,41 @@ uart_init:
     pop dx
     ret
 
-; Output character in AL to COM1
+; Output character in AL to COM1 (0x3F8) and Winbond Video Card LPT (0x3BC)
 uart_putc:
     push dx
+    push cx
     push ax
     mov ah, al
 
-    ; Wait for Line Status Register bit 5 (THRE - Transmitter Holding Reg Empty)
+    ; 1. Bounded wait for COM1 Line Status Register bit 5 (THRE)
+    ;    Bounded to 512 polls so systems without an ISA COM1 card never hang.
     mov dx, COM1_PORT + 5   ; 0x3FD (LSR)
+    mov cx, 512
 .wait_tx:
     in al, dx
     test al, 0x20
-    jz .wait_tx
-
+    jnz .tx_ready
+    loop .wait_tx
+.tx_ready:
     mov al, ah
     mov dx, COM1_PORT       ; 0x3F8 (THR)
     out dx, al
 
+    ; 2. Mirror telemetry byte to Winbond W86855AF Onboard DB25 LPT Port (0x3BC)
+    ;    Latches 8-bit ASCII char on DB25 Pins 2..9 and pulses /STROBE (Pin 1)
+    ;    so an Arduino Uno / Pi 2B can capture logs without a serial card.
+    mov dx, 0x3BC           ; LPT Data Latch (MDA/Hercules standard port)
+    mov al, ah
+    out dx, al
+    mov dx, 0x3BE           ; LPT Control Port
+    mov al, 0x0D            ; Assert /STROBE
+    out dx, al
+    mov al, 0x0C            ; Release /STROBE
+    out dx, al
+
     pop ax
+    pop cx
     pop dx
     ret
 

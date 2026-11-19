@@ -153,15 +153,25 @@ vt102_switch_console:
     mov ax, GDT_KDATA_SEL
     mov ds, ax
 
-    ; 2. Copy target console's backing buffer to physical VRAM (0xB8000)
+    ; 2. Copy target console's backing buffer to physical VRAM (0xB8000 & 0xB0000)
     mov bx, [target_vc]
     call get_vc_buf_ptr
     mov si, di                          ; DS:SI = target backing buffer
 
     mov ax, GDT_VRAM_C_SEL
     mov es, ax
-    xor di, di                          ; ES:DI = VRAM
+    xor di, di                          ; ES:DI = 0xB8000 Color VRAM
+    mov cx, 2000
+    cld
+    rep movsw
 
+    ; Also mirror to 0xB0000 Monochrome/Hercules VRAM (Winbond W86855AF)
+    mov bx, [target_vc]
+    call get_vc_buf_ptr
+    mov si, di
+    mov ax, GDT_VRAM_M_SEL
+    mov es, ax
+    xor di, di                          ; ES:DI = 0xB0000 Mono VRAM
     mov cx, 2000
     cld
     rep movsw

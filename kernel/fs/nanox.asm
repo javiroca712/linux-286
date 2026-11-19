@@ -390,6 +390,20 @@ nanox_paint_vram_desktop:
     mov ax, 2000
     call vt102_update_hw_cursor
 
+    ; 8. Mirror 80x25 GUI Desktop from 0xB8000 (Color) to 0xB0000 (Hercules/Mono)
+    ;    so the Winbond W86855AF video card displays the GUI in both modes!
+    push ds
+    mov ax, GDT_VRAM_C_SEL              ; Source: 0xB8000
+    mov ds, ax
+    mov ax, GDT_VRAM_M_SEL              ; Dest:   0xB0000
+    mov es, ax
+    xor si, si
+    xor di, di
+    mov cx, 2000                        ; 2000 words = 4000 bytes
+    cld
+    rep movsw
+    pop ds
+
     pop es
     popa
     ret
