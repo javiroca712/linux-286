@@ -407,7 +407,7 @@ fb286_program_vga_text:
     push ax
 
     mov dx, 0x3CE
-    mov ax, 0x0206                      ; Keep 0xA0000 + 0xB8000 active
+    mov ax, 0x0E06                      ; Map 0xB8000..0xBFFFF as active color display
     out dx, ax
 
     pop ax

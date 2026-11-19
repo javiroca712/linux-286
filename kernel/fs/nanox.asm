@@ -164,6 +164,12 @@ nanox_paint_vram_desktop:
     pusha
     push es
 
+    ; Ensure VGA Graphics Controller Misc Register (0x3CE index 6) maps 0xB8000
+    ; as the active visible color display aperture
+    mov dx, 0x3CE
+    mov ax, 0x0E06
+    out dx, ax
+
     mov ax, GDT_VRAM_C_SEL              ; 0x0018 -> Physical 0xB8000
     mov es, ax
 
@@ -284,10 +290,10 @@ nanox_paint_vram_desktop:
     mov word [es:di], 0x0ADB            ; Blinking green block cursor '█'
 .skip_tcur:
 
-    ; 5. Draw Window 2: "Clock (nxclock)" (Rows 2..10, Cols 51..76)
+    ; 5. Draw Window 2: "Clock (nxclock)" (Rows 2..10, Cols 51..77)
     mov byte [win_row], 2
     mov byte [win_col], 51
-    mov byte [win_w], 26
+    mov byte [win_w], 27
     mov byte [win_h], 9
     mov byte [win_body_attr], 0x1F      ; White on Blue
     mov al, 0x70
@@ -329,10 +335,10 @@ nanox_paint_vram_desktop:
     mov si, str_clk_line5
     call gui_vram_puts
 
-    ; 6. Draw Window 3: "Calc (nxcalc)" (Rows 12..21, Cols 51..76)
+    ; 6. Draw Window 3: "Calc (nxcalc)" (Rows 12..21, Cols 51..77)
     mov byte [win_row], 12
     mov byte [win_col], 51
-    mov byte [win_w], 26
+    mov byte [win_w], 27
     mov byte [win_h], 10
     mov byte [win_body_attr], 0x70      ; Black on Light Gray
     mov al, 0x70
