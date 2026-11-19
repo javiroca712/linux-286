@@ -148,6 +148,21 @@ keyboard_process_scancode:
     je .hotkey_f5
 
 .check_regular_key:
+    ; If Nano-X GUI is active on tty5 (active_console == 4), check Arrow keys first
+    cmp byte [active_console], 4
+    jne .translate_ascii
+
+    mov al, [saved_scancode]
+    cmp al, 0x48                        ; Up Arrow
+    je .gui_arrow_up
+    cmp al, 0x50                        ; Down Arrow
+    je .gui_arrow_down
+    cmp al, 0x4B                        ; Left Arrow
+    je .gui_arrow_left
+    cmp al, 0x4D                        ; Right Arrow
+    je .gui_arrow_right
+
+.translate_ascii:
     ; 7. Translate make code to ASCII
     mov al, [saved_scancode]
     cmp al, KBD_TABLE_SIZE
@@ -193,6 +208,13 @@ keyboard_process_scancode:
     and al, 0x1F
 
 .dispatch_to_tty:
+    ; If Nano-X GUI is active on tty5 (active_console == 4), route key directly to GUI desktop handler
+    cmp byte [active_console], 4
+    jne .route_text_tty
+    call nanox_handle_key
+    jmp .proc_done
+
+.route_text_tty:
     ; Route character into active console's TTY line discipline
     ; Active console is 0..3 -> TTY index is 1..4
     mov bl, [active_console]
@@ -201,7 +223,32 @@ keyboard_process_scancode:
     call tty_input_char
     jmp .proc_done
 
+.gui_arrow_up:
+    mov bl, 0
+    mov bh, -1
+    call nanox_move_cursor
+    jmp .proc_done
+
+.gui_arrow_down:
+    mov bl, 0
+    mov bh, 1
+    call nanox_move_cursor
+    jmp .proc_done
+
+.gui_arrow_left:
+    mov bl, -1
+    mov bh, 0
+    call nanox_move_cursor
+    jmp .proc_done
+
+.gui_arrow_right:
+    mov bl, 1
+    mov bh, 0
+    call nanox_move_cursor
+    jmp .proc_done
+
 .hotkey_f1:
+    mov byte [nanox_active], 0
     mov ax, FB_MODE_TEXT_80x25
     call fb286_set_mode
     mov al, 0
@@ -209,6 +256,7 @@ keyboard_process_scancode:
     jmp .proc_done
 
 .hotkey_f2:
+    mov byte [nanox_active], 0
     mov ax, FB_MODE_TEXT_80x25
     call fb286_set_mode
     mov al, 1
@@ -216,6 +264,7 @@ keyboard_process_scancode:
     jmp .proc_done
 
 .hotkey_f3:
+    mov byte [nanox_active], 0
     mov ax, FB_MODE_TEXT_80x25
     call fb286_set_mode
     mov al, 2
@@ -223,6 +272,7 @@ keyboard_process_scancode:
     jmp .proc_done
 
 .hotkey_f4:
+    mov byte [nanox_active], 0
     mov ax, FB_MODE_TEXT_80x25
     call fb286_set_mode
     mov al, 3

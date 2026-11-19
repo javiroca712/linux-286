@@ -370,63 +370,20 @@ fb286_write:
 
 ; ----------------------------------------------------------------------------
 ; Hardware Register Programmers for Standard VGA
+;
+; Note: Sets Graphics Controller Misc Register (0x3CE index 0x06) to 0x02
+; (Memory Map 00 = full 128 KB window 0xA0000..0xBFFFF with Odd/Even active),
+; so both the 64 KB 0xA0000 LDT framebuffer aperture (0x001F) AND the 0xB8000
+; display scanout aperture are live simultaneously without clobbering the
+; Plane 2 hardware character generator font on console switches.
 ; ----------------------------------------------------------------------------
 fb286_program_vga_planar:
     push dx
     push ax
 
-    ; Sequencer reset
-    mov dx, 0x3C4
-    mov ax, 0x0100                      ; Synchronous reset
-    out dx, ax
-
-    ; Misc Output: 0x3C2 = 0xE3 (640x480, 25.175 MHz clock, 60 Hz)
-    mov dx, 0x3C2
-    mov al, 0xE3
-    out dx, al
-
-    ; Sequencer: Clocking Mode & Plane Enable
-    mov dx, 0x3C4
-    mov ax, 0x0101                      ; 8 dots per clock
-    out dx, ax
-    mov ax, 0x0F02                      ; Enable all 4 bitplanes for write
-    out dx, ax
-    mov ax, 0x0003                      ; Char map select
-    out dx, ax
-    mov ax, 0x0604                      ; Memory mode: Chain-4 OFF, Extended mem ON
-    out dx, ax
-    mov ax, 0x0300                      ; End reset
-    out dx, ax
-
-    ; Unlock CRTC registers (Port 0x3D4, index 0x11, clear bit 7)
-    mov dx, 0x3D4
-    mov al, 0x11
-    out dx, al
-    inc dx
-    in al, dx
-    and al, 0x7F
-    out dx, al
-    dec dx
-
-    ; Graphics Controller (Port 0x3CE)
+    ; Graphics Controller Misc (0x3CE index 6): Enable 0xA0000..0xBFFFF decode
     mov dx, 0x3CE
-    mov ax, 0x0000                      ; Set/Reset = 0
-    out dx, ax
-    mov ax, 0x0001                      ; Enable Set/Reset = 0
-    out dx, ax
-    mov ax, 0x0002                      ; Color Compare = 0
-    out dx, ax
-    mov ax, 0x0003                      ; Data Rotate = 0
-    out dx, ax
-    mov ax, 0x0004                      ; Read Map Select = Plane 0
-    out dx, ax
-    mov ax, 0x0005                      ; Mode = Write mode 0, Read mode 0
-    out dx, ax
-    mov ax, 0x0506                      ; Misc: 64KB at 0xA0000, Graphics mode
-    out dx, ax
-    mov ax, 0x0F07                      ; Color Don't Care = All planes
-    out dx, ax
-    mov ax, 0xFF08                      ; Bit Mask = 0xFF (all pixels enabled)
+    mov ax, 0x0206                      ; 128KB aperture (0xA0000 + 0xB8000 active)
     out dx, ax
 
     pop ax
@@ -437,21 +394,8 @@ fb286_program_vga_mode13:
     push dx
     push ax
 
-    ; Misc Output: 0x3C2 = 0x63 (320x200, 25.175 MHz clock, 70 Hz)
-    mov dx, 0x3C2
-    mov al, 0x63
-    out dx, al
-
-    ; Sequencer Mode 13h (Chain-4 enabled)
-    mov dx, 0x3C4
-    mov ax, 0x0E04                      ; Chain-4 ON, Extended mem ON
-    out dx, ax
-
-    ; Graphics Controller
     mov dx, 0x3CE
-    mov ax, 0x4005                      ; 256-color shift mode
-    out dx, ax
-    mov ax, 0x0506                      ; 64KB at 0xA0000
+    mov ax, 0x0206                      ; 128KB aperture (0xA0000 + 0xB8000 active)
     out dx, ax
 
     pop ax
@@ -462,21 +406,8 @@ fb286_program_vga_text:
     push dx
     push ax
 
-    ; Misc Output: 0x3C2 = 0x67 (720x400 / 80x25 text, 28.322 MHz clock)
-    mov dx, 0x3C2
-    mov al, 0x67
-    out dx, al
-
-    ; Sequencer Text Mode
-    mov dx, 0x3C4
-    mov ax, 0x0304                      ; Extended memory, odd/even text mode
-    out dx, ax
-
-    ; Graphics Controller
     mov dx, 0x3CE
-    mov ax, 0x1005                      ; Odd/even text mode
-    out dx, ax
-    mov ax, 0x0E06                      ; Text aperture at 0xB8000 (32 KB)
+    mov ax, 0x0206                      ; Keep 0xA0000 + 0xB8000 active
     out dx, ax
 
     pop ax
