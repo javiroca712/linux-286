@@ -378,6 +378,8 @@ fb286_write:
 ; Plane 2 hardware character generator font on console switches.
 ; ----------------------------------------------------------------------------
 fb286_program_vga_planar:
+    cmp byte [console_is_mono], 0
+    jne .skip_planar
     push dx
     push ax
 
@@ -388,9 +390,12 @@ fb286_program_vga_planar:
 
     pop ax
     pop dx
+.skip_planar:
     ret
 
 fb286_program_vga_mode13:
+    cmp byte [console_is_mono], 0
+    jne .skip_mode13
     push dx
     push ax
 
@@ -400,9 +405,12 @@ fb286_program_vga_mode13:
 
     pop ax
     pop dx
+.skip_mode13:
     ret
 
 fb286_program_vga_text:
+    cmp byte [console_is_mono], 0
+    jne .skip_text
     push dx
     push ax
 
@@ -412,6 +420,7 @@ fb286_program_vga_text:
 
     pop ax
     pop dx
+.skip_text:
     ret
 
 section .data

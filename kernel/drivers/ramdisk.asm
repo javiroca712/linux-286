@@ -17,20 +17,29 @@ global ramdisk_write_sector
 section .text
 
 ; ----------------------------------------------------------------------------
-; ramdisk_init: Zero out and initialize the 64 KB RAM disk at phys 0x120000
+; ramdisk_init: Zero out and initialize the 64 KB RAM disk
+;               Uses Extended RAM 0x120000 when >= 256 KB XMS, else 0x080000
 ; ----------------------------------------------------------------------------
 ramdisk_init:
     pusha
 
-    ; Zero out first 32 KB (0x120000..0x127FFF)
-    mov dh, 0x12
+    cmp word [cmos_ext_kb], 256
+    jb .use_conv_ram
+    mov byte [ramdisk_base_hi], 0x12
+    jmp .zero_disk
+.use_conv_ram:
+    mov byte [ramdisk_base_hi], 0x08
+
+.zero_disk:
+    ; Zero out first 32 KB (+0x0000..+0x7FFF)
+    mov dh, [ramdisk_base_hi]
     xor di, di
     xor al, al
     mov cx, 0x8000
     call phys_set
 
-    ; Zero out second 32 KB (0x128000..0x12FFFF)
-    mov dh, 0x12
+    ; Zero out second 32 KB (+0x8000..+0xFFFF)
+    mov dh, [ramdisk_base_hi]
     mov di, 0x8000
     xor al, al
     mov cx, 0x8000
@@ -60,12 +69,12 @@ ramdisk_read_sector:
     cmp ax, RAMDISK_SECTORS
     jae .bad_lba
 
-    ; Calculate source physical address in RAM disk (0x120000 + LBA * 512)
+    ; Calculate source physical address in RAM disk (base + LBA * 512)
     ; LBA * 512 = AX * 512
     mov si, ax
     mov cl, 9
     shl si, cl                          ; SI = offset within 64KB (bits 15..0)
-    mov dl, 0x12                        ; DL = physical page (bits 23..16)
+    mov dl, [ramdisk_base_hi]           ; DL = physical page (bits 23..16)
 
     ; Calculate destination physical address in Kernel Data (0x019000 + BX)
     mov di, bx
@@ -114,11 +123,11 @@ ramdisk_write_sector:
     mov dl, 0x01
     adc dl, 0
 
-    ; Calculate destination physical address in RAM disk (0x120000 + LBA * 512)
+    ; Calculate destination physical address in RAM disk (base + LBA * 512)
     mov di, ax
     mov cl, 9
     shl di, cl
-    mov dh, 0x12
+    mov dh, [ramdisk_base_hi]
 
     mov cx, SECTOR_SIZE                 ; 512 bytes
     call phys_copy
@@ -138,4 +147,5 @@ ramdisk_write_sector:
     ret
 
 section .data
+ramdisk_base_hi: db 0x12
 str_ramdisk_ok: db "[RAMDISK] 64 KB RAM disk (/dev/ram0) initialized in Extended RAM", 13, 10, 0

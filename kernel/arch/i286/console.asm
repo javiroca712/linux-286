@@ -16,6 +16,9 @@ global console_putc
 global console_puts
 global console_print_hex16
 global console_print_dec
+global console_vram_sel
+global console_crtc_port
+global console_is_mono
 
 section .text
 
@@ -24,8 +27,24 @@ console_init:
     push ax
     push di
 
-    mov ax, GDT_VRAM_C_SEL
-    mov [console_vram_sel], ax
+    ; Detect active BIOS display adapter from BDA CRTC base port (0x000463)
+    ; using GDT_COPY_A_SEL (initially mapped to physical 0x000000).
+    mov ax, GDT_COPY_A_SEL
+    mov es, ax
+    cmp word [es:0x0463], 0x03B4
+    je .is_mono
+
+    mov word [console_vram_sel], GDT_VRAM_C_SEL
+    mov word [console_crtc_port], 0x03D4
+    mov byte [console_is_mono], 0
+    jmp .disp_detected
+
+.is_mono:
+    mov word [console_vram_sel], GDT_VRAM_M_SEL
+    mov word [console_crtc_port], 0x03B4
+    mov byte [console_is_mono], 1
+
+.disp_detected:
     mov word [cursor_pos], 0
 
     call console_clear
@@ -157,8 +176,8 @@ update_hardware_cursor:
 
     mov bx, [cursor_pos]
 
-    ; CRT Controller Index Port 0x3D4, Data Port 0x3D5
-    mov dx, 0x3D4
+    ; CRT Controller Index Port (0x3D4 Color / 0x3B4 Mono), Data Port (+1)
+    mov dx, [console_crtc_port]
     mov al, 0x0F            ; Cursor location low register
     out dx, al
     inc dx                  ; 0x3D5
@@ -230,4 +249,6 @@ console_print_dec:
 
 section .data
 console_vram_sel:   dw GDT_VRAM_C_SEL
+console_crtc_port:  dw 0x03D4
+console_is_mono:    db 0
 cursor_pos:         dw 0

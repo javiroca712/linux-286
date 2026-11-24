@@ -72,8 +72,11 @@ nanox_start_gui:
     call fb286_map_ldt
 
     ; 4. Elevate to IOPL = 3 for direct port writes
-    mov ax, 1
-    call fb286_set_iopl3
+    pushf
+    pop ax
+    or ax, 0x3000
+    push ax
+    popf
 
     ; 5. Allocate 4 KB Shared Memory Window Buffer (Key = 0x4E58 "NX") if not yet allocated
     cmp word [nanox_shmid], 0
@@ -165,12 +168,15 @@ nanox_paint_vram_desktop:
     push es
 
     ; Ensure VGA Graphics Controller Misc Register (0x3CE index 6) maps 0xB8000
-    ; as the active visible color display aperture
+    ; as the active visible color display aperture (skip on Monochrome/Hercules)
+    cmp byte [console_is_mono], 0
+    jne .skip_vga_misc
     mov dx, 0x3CE
     mov ax, 0x0E06
     out dx, ax
+.skip_vga_misc:
 
-    mov ax, GDT_VRAM_C_SEL              ; 0x0018 -> Physical 0xB8000
+    mov ax, [console_vram_sel]          ; Active display VRAM (0xB8000 or 0xB0000)
     mov es, ax
 
     ; 1. Fill Rows 1..23 with Desktop Wallpaper (Cyan on Blue 0x13, Stipple 0xB0)
@@ -390,20 +396,58 @@ nanox_paint_vram_desktop:
     mov ax, 2000
     call vt102_update_hw_cursor
 
-    ; 8. Mirror 80x25 GUI Desktop from 0xB8000 (Color) to 0xB0000 (Hercules/Mono)
-    ;    so the Winbond W86855AF video card displays the GUI in both modes!
-    push ds
-    mov ax, GDT_VRAM_C_SEL              ; Source: 0xB8000
-    mov ds, ax
-    mov ax, GDT_VRAM_M_SEL              ; Dest:   0xB0000
-    mov es, ax
-    xor si, si
-    xor di, di
-    mov cx, 2000                        ; 2000 words = 4000 bytes
-    cld
-    rep movsw
-    pop ds
+    ; 8. Normalize Color attributes -> MDA/Hercules Mono attributes if monochrome
+    cmp byte [console_is_mono], 0
+    je .paint_done
 
+    xor di, di
+    mov cx, 2000
+.mono_norm_loop:
+    mov al, [es:di + 1]
+    cmp al, 0x08                        ; Drop shadow -> black/invisible
+    je .mono_set_00
+    cmp al, 0x13                        ; Wallpaper stipple -> normal
+    je .mono_set_07
+    cmp al, 0x1F                        ; Menu bar / clock body -> reverse video
+    je .mono_set_70
+    cmp al, 0x3F                        ; Focused title bar -> reverse video
+    je .mono_set_70
+    cmp al, 0x4F                        ; Mouse pointer -> reverse video
+    je .mono_set_70
+    cmp al, 0x70                        ; Taskbar / calc / unfocused title -> reverse video
+    je .mono_set_70
+    cmp al, 0x0A
+    je .mono_set_0F
+    cmp al, 0x0B
+    je .mono_set_0F
+    cmp al, 0x0E
+    je .mono_set_0F
+    cmp al, 0x0F
+    je .mono_set_0F
+    cmp al, 0x1A
+    je .mono_set_0F
+    cmp al, 0x1B
+    je .mono_set_0F
+    cmp al, 0x1E
+    je .mono_set_0F
+    mov byte [es:di + 1], 0x07          ; Normal (avoids accidental MDA underline bit)
+    jmp .mono_next
+.mono_set_00:
+    mov byte [es:di + 1], 0x00
+    jmp .mono_next
+.mono_set_07:
+    mov byte [es:di + 1], 0x07
+    jmp .mono_next
+.mono_set_0F:
+    mov byte [es:di + 1], 0x0F
+    jmp .mono_next
+.mono_set_70:
+    mov byte [es:di + 1], 0x70
+.mono_next:
+    add di, 2
+    loop .mono_norm_loop
+
+.paint_done:
     pop es
     popa
     ret
@@ -718,10 +762,17 @@ nanox_exec_term_cmd:
     jmp .cmd_done
 
 .run_beep:
-    ; Trigger 880 Hz tone for 150 ms on PC Speaker
-    mov ax, 880
-    mov bx, 15
-    call pcspkr_beep_ticks
+    ; Trigger 880 Hz tone for 150 ms on PC Speaker (divider = 1355 = 0x054B)
+    mov al, PIT_CH2_MODE3_SQUARE
+    out PIT_CMD_PORT, al
+    mov al, 0x4B
+    out PIT_CH2_PORT, al
+    mov al, 0x05
+    out PIT_CH2_PORT, al
+    in al, PCSPKR_CTRL_PORT
+    or al, 0x03
+    out PCSPKR_CTRL_PORT, al
+    mov word [pcspkr_beep_ticks], 15
     mov word [gui_out_line1], str_gout_beep1
     mov word [gui_out_line2], str_gout_beep2
     mov word [gui_out_line3], str_gout_blank

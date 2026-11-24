@@ -47,6 +47,7 @@ run_verification_gate:
     je .test1_ok
     mov si, str_gp_failed
     call uart_puts
+    call console_puts
     cli
     hlt
 
@@ -57,6 +58,7 @@ run_verification_gate:
     ; ------------------------------------------------------------------------
     ; Step 2: GDT Scratch Copy Windows (0x0028 & 0x0030)
     ; Test cross-segment copy from Pool A (0x030000) to Pool B (0x105000)
+    ; when Extended RAM >= 64 KB, else Conventional RAM (0x065000),
     ; and back to verify_buf in DS.
     ; ------------------------------------------------------------------------
     mov si, str_test2_hdr
@@ -69,11 +71,18 @@ run_verification_gate:
     mov cx, 512
     call phys_set
 
-    ; Copy 512 bytes from Pool A (0x030000) to Pool B (0x105000) across 1MB line
+    ; Select destination page: 0x10 (1044 KB+) if Ext RAM >= 64 KB, else 0x06 (0x065000)
+    mov bl, 0x10
+    cmp word [cmos_ext_kb], 64
+    jae .t2_dst_ready
+    mov bl, 0x06
+.t2_dst_ready:
+
+    ; Copy 512 bytes from Pool A (0x030000) to target (0x105000 or 0x065000)
     mov dl, 0x03
     mov si, 0x0000          ; Source = 0x030000
-    mov dh, 0x10
-    mov di, 0x5000          ; Dest = 0x105000
+    mov dh, bl
+    mov di, 0x5000
     mov cx, 512
     call phys_copy
 
@@ -83,9 +92,9 @@ run_verification_gate:
     xor ax, ax
     rep stosw
 
-    ; Copy 512 bytes from Pool B (0x105000) back to verify_buf in DS (phys 0x019000 + verify_buf)
-    mov dl, 0x10
-    mov si, 0x5000          ; Source = 0x105000
+    ; Copy 512 bytes from target (0x105000 or 0x065000) back to verify_buf in DS
+    mov dl, bl
+    mov si, 0x5000          ; Source = 0x105000 / 0x065000
     ; Kernel Data base is 0x019000.
     ; Dest low = 0x9000 + verify_buf. Dest high = 0x01 + carry
     mov ax, verify_buf
@@ -112,6 +121,7 @@ run_verification_gate:
 .copy_win_fail:
     mov si, str_copy_win_err
     call uart_puts
+    call console_puts
     cli
     hlt
 
@@ -130,15 +140,6 @@ run_verification_gate:
     cmp ax, 0xFFFF
     je .segalloc_fail
     mov [test_blk1], ax
-
-    ; Allocate Block 2 in Pool B: 128 paragraphs (2 KB)
-    mov cx, 128
-    mov bl, POOL_B
-    mov bh, 1
-    call seg_alloc
-    cmp ax, 0xFFFF
-    je .segalloc_fail
-    mov [test_blk2], ax
 
     ; Allocate Block 3 in Pool A: 64 paragraphs (1 KB)
     mov cx, 64
@@ -167,10 +168,18 @@ run_verification_gate:
     cmp byte [di + SB_BASE_HIGH], 0x02
     jne .compact_fail
 
-    ; Clean up test allocations
-    mov ax, [test_blk2]
-    call seg_free
+    ; Free Block 3
     mov ax, [test_blk3]
+    call seg_free
+
+    ; Allocate & free Block 2 in Pool B (tests Pool B when present, Pool A fallback when 0 KB XMS)
+    mov cx, 128
+    mov bl, POOL_B
+    mov bh, 1
+    call seg_alloc
+    cmp ax, 0xFFFF
+    je .segalloc_fail
+    mov [test_blk2], ax
     call seg_free
 
     mov si, str_test3_pass
@@ -180,12 +189,14 @@ run_verification_gate:
 .compact_fail:
     mov si, str_compact_err
     call uart_puts
+    call console_puts
     cli
     hlt
 
 .segalloc_fail:
     mov si, str_segalloc_err
     call uart_puts
+    call console_puts
     cli
     hlt
 
@@ -234,6 +245,7 @@ run_verification_gate:
 .ldt_fail:
     mov si, str_ldt_err
     call uart_puts
+    call console_puts
     cli
     hlt
 
@@ -362,12 +374,14 @@ run_verification_gate:
 .cow_alloc_fail:
     mov si, str_segalloc_err
     call uart_puts
+    call console_puts
     cli
     hlt
 
 .cow_verify_fail:
     mov si, str_cow_fail
     call uart_puts
+    call console_puts
     cli
     hlt
 
@@ -429,6 +443,7 @@ run_verification_gate:
 .np_verify_fail:
     mov si, str_np_test_fail
     call uart_puts
+    call console_puts
     cli
     hlt
 
@@ -498,6 +513,7 @@ run_verification_gate:
 .ss_fail:
     mov si, str_ss_fail
     call uart_puts
+    call console_puts
     cli
     hlt
 

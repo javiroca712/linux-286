@@ -88,8 +88,11 @@ setup_entry:
     mov ds, ax
 
     ; ------------------------------------------------------------------------
-    ; 5. Disable interrupts and load early GDT & IDT
+    ; 5. Shut off floppy motor cleanly, disable interrupts, load early GDT & IDT
     ; ------------------------------------------------------------------------
+    mov dx, 0x03F2
+    mov al, 0x0C
+    out dx, al
     cli
 
     ; Load GDTR with physical 24-bit base of gdt_table:

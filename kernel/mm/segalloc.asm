@@ -45,15 +45,25 @@ seg_init:
     add di, 16
     loop .clear_slots
 
-    ; 2. Initialize Block 0: Pool A Free Block (476 KB)
-    ; Base: 0x029000, Size: 30464 paragraphs (476 * 64)
+    ; 2. Initialize Block 0: Pool A Free Block
+    ;    - If Extended RAM >= 256 KB: 0x029000 - 0x09FFFF (30464 paras, 476 KB)
+    ;    - If Extended RAM < 256 KB:  0x029000 - 0x07FFFF (22272 paras, 348 KB),
+    ;      reserving 0x080000 - 0x08FFFF (64 KB) for the RAM disk in 640 KB RAM.
     mov di, seg_blocks
     mov byte  [di + SB_STATUS], SEG_BLOCK_FREE
     mov byte  [di + SB_POOL_ID], POOL_A
     mov word  [di + SB_BASE_LOW], 0x9000
     mov byte  [di + SB_BASE_HIGH], 0x02
     mov byte  [di + SB_OWNER_PID], 0
+    cmp word [cmos_ext_kb], 256
+    jb .pool_a_conv_only
     mov word  [di + SB_SIZE_PARAS], 30464
+    mov byte  [pool_a_limit_hi], 0x09
+    jmp .pool_a_ready
+.pool_a_conv_only:
+    mov word  [di + SB_SIZE_PARAS], 22272
+    mov byte  [pool_a_limit_hi], 0x07
+.pool_a_ready:
     mov word  [di + SB_DESC_PTR], 0
     mov byte  [di + SB_FLAGS], 0
     mov word  [di + SB_REF_COUNT], 0
@@ -587,12 +597,12 @@ unify_free_space:
     jb .del_loop
 
     ; Calculate remaining bytes from target_base to pool limit
-    ; Pool A limit: 0x09FFFF (high=0x09, low=0xFFFF)
+    ; Pool A limit: 0x09FFFF or 0x07FFFF (high=[pool_a_limit_hi], low=0xFFFF)
     ; Pool B limit: 0x100000 + ext_kb * 1024 - 1
     cmp bl, POOL_A
     jne .pool_b_limit
     mov si, 0xFFFF                      ; Pool A limit low
-    mov cl, 0x09                        ; Pool A limit high
+    mov cl, [pool_a_limit_hi]           ; Pool A limit high
     jmp .calc_free_size
 
 .pool_b_limit:
@@ -885,6 +895,7 @@ seg_realloc:
     ret
 
 section .data
+pool_a_limit_hi:    db 0x09
 realloc_old_blk:    dw 0
 realloc_new_blk:    dw 0
 realloc_new_paras:  dw 0

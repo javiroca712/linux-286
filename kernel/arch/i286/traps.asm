@@ -22,6 +22,7 @@ extern uart_puts
 extern uart_putc
 extern uart_print_hex16
 extern console_puts
+extern console_putc
 extern console_print_hex16
 extern irq0_timer_handler
 
@@ -446,6 +447,19 @@ common_trap_entry:
 .unhandled_fault:
     mov si, str_crash_halt
     call uart_puts
+    call console_puts
+    mov si, str_fault_vec
+    call console_puts
+    mov ax, [bp + 20]
+    call console_print_hex16
+    mov si, str_fault_csip
+    call console_puts
+    mov ax, [bp + 26]
+    call console_print_hex16
+    mov al, ':'
+    call console_putc
+    mov ax, [bp + 24]
+    call console_print_hex16
     cli
 .hang:
     hlt

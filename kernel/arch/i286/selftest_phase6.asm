@@ -137,6 +137,7 @@ test31_framebuffer_modes:
 .t31_fail:
     mov si, str_t31_fail
     call uart_puts
+    call console_puts
     hlt
 
 ; ----------------------------------------------------------------------------
@@ -185,13 +186,16 @@ test32_framebuffer_ldt_map:
     cmp byte [di + 6], VM_FLAG_MMIO     ; Software VM Flag MMIO (0x20)
     jne .t32_fail
 
-    ; 4. Far access write/read via selector 0x001F
+    ; 4. Far access write/read via selector 0x001F (VGA MMIO; skip RW test on MDA/Hercules)
     mov ax, LDT_UFB_SEL
     mov es, ax
+    cmp byte [console_is_mono], 0
+    jne .t32_skip_vram_rw
     mov word [es:0x0000], 0x5AA5
     mov bx, [es:0x0000]
     cmp bx, 0x5AA5
     jne .t32_fail
+.t32_skip_vram_rw:
 
     mov ax, GDT_KDATA_SEL
     mov es, ax
@@ -209,6 +213,7 @@ test32_framebuffer_ldt_map:
 .t32_fail:
     mov si, str_t32_fail
     call uart_puts
+    call console_puts
     hlt
 
 ; ----------------------------------------------------------------------------
@@ -274,6 +279,7 @@ test33_display_server_iopl3:
 .t33_fail:
     mov si, str_t33_fail
     call uart_puts
+    call console_puts
     hlt
 
 ; ----------------------------------------------------------------------------
@@ -405,36 +411,43 @@ test34_zero_copy_shm:
 .t34_fail_1:
     mov si, str_t34_f1
     call uart_puts
+    call console_puts
     hlt
 
 .t34_fail_2:
     mov si, str_t34_f2
     call uart_puts
+    call console_puts
     hlt
 
 .t34_fail_3:
     mov si, str_t34_f3
     call uart_puts
+    call console_puts
     hlt
 
 .t34_fail_4:
     mov si, str_t34_f4
     call uart_puts
+    call console_puts
     hlt
 
 .t34_fail_5:
     mov si, str_t34_f5
     call uart_puts
+    call console_puts
     hlt
 
 .t34_fail_6:
     mov si, str_t34_f6
     call uart_puts
+    call console_puts
     hlt
 
 .t34_fail_7:
     mov si, str_t34_f7
     call uart_puts
+    call console_puts
     hlt
 
 ; ----------------------------------------------------------------------------
@@ -533,6 +546,7 @@ test35_serial_mouse:
 .t35_fail:
     mov si, str_t35_fail
     call uart_puts
+    call console_puts
     hlt
 
 ; ----------------------------------------------------------------------------
@@ -628,6 +642,7 @@ test36_pc_speaker:
 .t36_fail:
     mov si, str_t36_fail
     call uart_puts
+    call console_puts
     hlt
 
 ; ----------------------------------------------------------------------------
@@ -756,6 +771,7 @@ test37_pwm_audio_dsp:
 .t37_fail:
     mov si, str_t37_fail
     call uart_puts
+    call console_puts
     hlt
 
 ; ----------------------------------------------------------------------------
@@ -808,6 +824,7 @@ test38_nanox_gui_tty5:
 .t38_fail:
     mov si, str_t38_fail
     call uart_puts
+    call console_puts
     hlt
 
 section .data

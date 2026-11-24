@@ -46,7 +46,9 @@ vt102_init:
     xor bx, bx                          ; BX = console index (0..3)
 
 .init_vc_loop:
-    ; 1. Clear backing buffer with 0x0720 (space, light gray on black)
+    ; 1. Clear backing buffer with 0x0720 (space, light gray on black) for text VCs 0..3
+    cmp bx, 4
+    jae .skip_buf_clear
     push cx
     push bx
     call get_vc_buf_ptr                 ; DI = &vc_buffers[bx * 4000]
@@ -56,6 +58,7 @@ vt102_init:
     rep stosw
     pop bx
     pop cx
+.skip_buf_clear:
 
     ; 2. Initialize cursor, attr, state
     push cx
@@ -134,14 +137,16 @@ vt102_switch_console:
 
     mov [target_vc], ax
 
-    ; 1. Save current physical VRAM (0xB8000) to current active console's backing buffer
+    ; 1. Save current physical VRAM to current active console's backing buffer (VCs 0..3 only)
     mov bl, [active_console]
+    cmp bl, 4
+    jae .skip_save_vram
     xor bh, bh
     call get_vc_buf_ptr                 ; DI = active VC buffer
     push ds
     pop es                              ; ES:DI = backing buffer
 
-    mov ax, GDT_VRAM_C_SEL
+    mov ax, [console_vram_sel]
     mov ds, ax
     xor si, si                          ; DS:SI = VRAM
 
@@ -153,29 +158,22 @@ vt102_switch_console:
     mov ax, GDT_KDATA_SEL
     mov ds, ax
 
-    ; 2. Copy target console's backing buffer to physical VRAM (0xB8000 & 0xB0000)
+.skip_save_vram:
+    ; 2. Copy target console's backing buffer to physical VRAM (VCs 0..3 only)
     mov bx, [target_vc]
+    cmp bx, 4
+    jae .skip_load_vram
     call get_vc_buf_ptr
     mov si, di                          ; DS:SI = target backing buffer
 
-    mov ax, GDT_VRAM_C_SEL
+    mov ax, [console_vram_sel]
     mov es, ax
-    xor di, di                          ; ES:DI = 0xB8000 Color VRAM
+    xor di, di                          ; ES:DI = Active Display VRAM
     mov cx, 2000
     cld
     rep movsw
 
-    ; Also mirror to 0xB0000 Monochrome/Hercules VRAM (Winbond W86855AF)
-    mov bx, [target_vc]
-    call get_vc_buf_ptr
-    mov si, di
-    mov ax, GDT_VRAM_M_SEL
-    mov es, ax
-    xor di, di                          ; ES:DI = 0xB0000 Mono VRAM
-    mov cx, 2000
-    cld
-    rep movsw
-
+.skip_load_vram:
     ; 3. Update active_console
     mov ax, [target_vc]
     mov [active_console], al
@@ -225,7 +223,7 @@ vt102_switch_console:
 vt102_update_hw_cursor:
     push dx
     push ax
-    mov dx, 0x3D4
+    mov dx, [console_crtc_port]
     mov al, 0x0F
     out dx, al
     inc dx
@@ -276,7 +274,7 @@ vt102_scroll_up:
     cmp bl, [active_console]
     jne .scroll_done
 
-    mov ax, GDT_VRAM_C_SEL
+    mov ax, [console_vram_sel]
     mov es, ax
     mov ds, ax
     xor di, di
@@ -368,7 +366,7 @@ vt102_write_char:
     cmp bl, [active_console]
     jne .adv_cursor
 
-    mov ax, GDT_VRAM_C_SEL
+    mov ax, [console_vram_sel]
     mov es, ax
     mov di, [bp + VC_CURSOR]
     shl di, 1
@@ -632,7 +630,7 @@ vt102_write_char:
     cmp bl, [active_console]
     jne .char_finish
 
-    mov ax, GDT_VRAM_C_SEL
+    mov ax, [console_vram_sel]
     mov es, ax
     xor di, di
     mov al, ' '
@@ -676,7 +674,7 @@ vt102_write_char:
     sub cx, dx
     mov di, [bp + VC_CURSOR]
     shl di, 1
-    mov ax, GDT_VRAM_C_SEL
+    mov ax, [console_vram_sel]
     mov es, ax
     mov al, ' '
     mov ah, [bp + VC_ATTR]
@@ -841,9 +839,9 @@ section .bss
 alignb 4
 active_console: resb 1
 alignb 2
-vc_descs:       resb (NR_CONSOLES * VC_DESC_SIZE) ; 4 * 8 = 32 bytes
+vc_descs:       resb (NR_CONSOLES * VC_DESC_SIZE) ; 5 * 8 = 40 bytes
 
 alignb 16
-vc_buffers:     resb (NR_CONSOLES * VC_BUF_SIZE) ; 4 * 4000 = 16,000 bytes
+vc_buffers:     resb (4 * VC_BUF_SIZE) ; 4 * 4000 = 16,000 bytes
 
 section .text

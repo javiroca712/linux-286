@@ -90,7 +90,9 @@ REQUIRED_ASSERTIONS = [
 ]
 
 
-def run_qemu(timeout_sec: float, use_ide: bool = False) -> tuple[int, str]:
+def run_qemu(
+    timeout_sec: float, use_ide: bool = False, mem: str = "1408k"
+) -> tuple[int, str]:
     floppy = Path("build/floppy.img")
     if not floppy.exists():
         print(f"Error: {floppy} not found. Run make first.", file=sys.stderr)
@@ -101,16 +103,34 @@ def run_qemu(timeout_sec: float, use_ide: bool = False) -> tuple[int, str]:
         if use_ide
         else "-drive file=build/floppy.img,format=raw,if=floppy"
     )
-    wsl_cmd = (
-        f"cd /mnt/c/Users/javir/dev/linux-286 && timeout {int(timeout_sec)}s "
-        f"qemu-system-i386 -cpu 486 -m 1408k {drive_flag} -nographic -serial mon:stdio -no-reboot || true\n"
-    )
-    proc = subprocess.run(
-        ["wsl", "-e", "bash"],
-        input=wsl_cmd,
-        capture_output=True,
-        text=True,
-    )
+    if sys.platform != "win32":
+        cmd = [
+            "timeout",
+            f"{int(timeout_sec)}s",
+            "qemu-system-i386",
+            "-cpu",
+            "486",
+            "-m",
+            mem,
+            "-drive",
+            f"file=build/floppy.img,format=raw,if={'ide' if use_ide else 'floppy'}",
+            "-nographic",
+            "-serial",
+            "mon:stdio",
+            "-no-reboot",
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+    else:
+        wsl_cmd = (
+            f"cd /mnt/c/Users/javir/dev/linux-286 && timeout {int(timeout_sec)}s "
+            f"qemu-system-i386 -cpu 486 -m {mem} {drive_flag} -nographic -serial mon:stdio -no-reboot || true\n"
+        )
+        proc = subprocess.run(
+            ["wsl", "-e", "bash"],
+            input=wsl_cmd,
+            capture_output=True,
+            text=True,
+        )
     output = proc.stdout + proc.stderr
     return proc.returncode, output
 
@@ -172,6 +192,11 @@ def main() -> int:
         default=4.0,
         help="Timeout in seconds (default: 4.0)",
     )
+    parser.add_argument(
+        "--mem",
+        default="1408k",
+        help="Guest RAM size passed to QEMU -m (default: 1408k; use 1M for 640KB/0KB-ext test).",
+    )
     args = parser.parse_args()
 
     print(
@@ -182,7 +207,7 @@ def main() -> int:
     if args.bochs:
         code, output = run_bochs(args.timeout)
     else:
-        code, output = run_qemu(args.timeout, use_ide=args.ide)
+        code, output = run_qemu(args.timeout, use_ide=args.ide, mem=args.mem)
 
     elapsed = time.time() - start_time
     if isinstance(output, bytes):

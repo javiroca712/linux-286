@@ -324,7 +324,9 @@ sys_fork:
 
     ; Clone open file descriptors from parent to child
     mov al, [current_task]
+    xor ah, ah
     mov bl, [child_pid]
+    xor bh, bh
     call vfs_clone_task_fds
 
     ; 5. Mark Child as TASK_READY

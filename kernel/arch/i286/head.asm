@@ -112,6 +112,9 @@ str_banner1:    db 13, 10
 str_banner2:    db "[PM286] LMSW PE=1 active. Ring 0 execution established.", 13, 10
                 db "[PM286] CS=0x0008 (Base=0x001000) DS=SS=0x0010 (Base=0x019000)", 13, 10, 0
 str_vga_banner: db "Lin286 Kernel v0.6.0-phase6 (Intel 80286 Protected Mode, 1MB RAM)", 13, 10, 0
+str_prog_cmos:  db "[BOOT] CMOS hardware detected.", 13, 10, 0
+str_prog_vfs:   db "[BOOT] VFS & block subsystems initialized.", 13, 10, 0
+str_prog_tests: db "[BOOT] Phase 1-6 self-tests passed.", 13, 10, 0
 str_ready:      db "[READY] Lin286 Phase 6 kernel initialized. Halting at idle.", 13, 10, 0
 
 section .bss
@@ -163,6 +166,8 @@ _start:
 
     ; 7. CMOS RTC & Hardware Autodetect (Ports 0x70/0x71)
     call cmos_init_and_detect
+    mov si, str_prog_cmos
+    call console_puts
 
     ; 8. Remap 8259A PIC (0x20-0x2F) and configure 8253 PIT at 100 Hz
     call pic_init
@@ -189,6 +194,8 @@ _start:
     ; - Buffer Cache (8 x 1024-byte buffers)
     ; - Rootfs (Minix v1 on /), DOS (/dos), /dev, /proc
     call vfs_init
+    mov si, str_prog_vfs
+    call console_puts
 
     ; 12. Initialize Phase 5 Subsystems:
     ; - VT102 / ANSI Terminal Parser & 4 Virtual Consoles (tty1..4)
@@ -218,6 +225,8 @@ _start:
     call run_phase4_verification_gate
     call run_phase5_verification_gate
     call run_phase6_verification_gate
+    mov si, str_prog_tests
+    call console_puts
 
     ; Enable maskable interrupts for 100 Hz scheduler tick
     sti

@@ -266,10 +266,10 @@ vfs_open:
     mov word [bx + VFIL_COUNT], 1
 
     ; 4. Find free fd in current task's filp table (0..7)
-    mov di, [current_task]
-    mov di, [di + TS_PID]               ; Task PID
-    mov cl, 3
-    shl di, cl                          ; di = PID * 8
+    mov al, [current_task]
+    xor ah, ah
+    mov di, ax                          ; Task PID (0..MAX_TASKS-1)
+    shl di, 3                           ; di = PID * 8
     shl di, 1                           ; di = byte offset (PID * 16)
     add di, task_filp_table
 
@@ -325,10 +325,10 @@ vfs_close:
     jae .bad_fd
 
     ; Lookup task_filp_table[pid * 8 + fd]
-    mov di, [current_task]
-    mov di, [di + TS_PID]
-    mov cl, 3
-    shl di, cl
+    mov al, [current_task]
+    xor ah, ah
+    mov di, ax
+    shl di, 3
     add di, bx
     shl di, 1
     add di, task_filp_table
@@ -400,10 +400,10 @@ vfs_read:
     mov [saved_read_req_cnt], cx
 
     ; Lookup vfs_file pointer
-    mov di, [current_task]
-    mov di, [di + TS_PID]
-    mov cl, 3
-    shl di, cl
+    mov al, [current_task]
+    xor ah, ah
+    mov di, ax
+    shl di, 3
     add di, bx
     shl di, 1
     add di, task_filp_table
@@ -516,10 +516,10 @@ vfs_write:
     mov [saved_write_req_cnt], cx
 
     ; Lookup vfs_file pointer
-    mov di, [current_task]
-    mov di, [di + TS_PID]
-    mov cl, 3
-    shl di, cl
+    mov al, [current_task]
+    xor ah, ah
+    mov di, ax
+    shl di, 3
     add di, bx
     shl di, 1
     add di, task_filp_table
@@ -605,9 +605,9 @@ vfs_lseek:
     jae .bad_seek_fd
 
     ; Lookup vfs_file
-    mov di, [current_task]
-    mov di, [di + TS_PID]
-    mov al, 3
+    mov al, [current_task]
+    xor ah, ah
+    mov di, ax
     shl di, 3
     add di, bx
     shl di, 1
@@ -676,10 +676,10 @@ vfs_fstat:
 
     mov si, di                          ; SI = destination struct stat
 
-    mov di, [current_task]
-    mov di, [di + TS_PID]
-    mov cl, 3
-    shl di, cl
+    mov al, [current_task]
+    xor ah, ah
+    mov di, ax
+    shl di, 3
     add di, bx
     shl di, 1
     add di, task_filp_table
